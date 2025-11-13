@@ -1,16 +1,21 @@
 import HeroCarouselComponent from '@/components/carousel';
-import StackedAreaChart from '@/components/chart';
-import EnergyChart from '@/components/chart';
+import StackedAreaChart from '@/components/areachart';
+import EnergyChart from '@/components/areachart';
+import ChartCarouselComponent from '@/components/chartCarousel';
 import { Text } from '@/components/ui/text';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import { useMemo, useState } from 'react';
 import { Dimensions, View } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedProps, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import AreaChartBottomSheet from '@/components/areachartbottomsheet';
+import BarChartBottomSheet from '@/components/barchartbottomsheet';
+import RingChartBottomSheet from '@/components/ringchartbottomsheet';
 
 export default function StatsTabScreen(){
 
   const [bottomScrolled, setBottomScrolled] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const blur = useSharedValue(0);
   
@@ -65,8 +70,8 @@ export default function StatsTabScreen(){
   return(
     <>
       <View className='flex-1 items-center p-4'>
-        <Animated.View style={[animatedStyle]}>
-          <StackedAreaChart />
+        <Animated.View style={[animatedStyle]} className="-mt-8">
+          <ChartCarouselComponent carouselIndex={carouselIndex} setCarouselIndex={setCarouselIndex} />
         </Animated.View>
 
         <BottomSheet
@@ -82,29 +87,16 @@ export default function StatsTabScreen(){
         >
           <BottomSheetScrollView>
             <View className='flex flex-col gap-4 p-4'>
-              <View className='flex flex-row justify-between items-center py-3 px-5 border border-border rounded-lg'>
-                <Text className='text-sm font-medium'>USAGE</Text>
-                <View className='flex flex-row gap-2'> 
-                  <Text className='text-sm'>20.0kWh</Text>
-                  <Text className='text-sm'>P400</Text>
-                </View>
-              </View>
-
-              <View className='flex flex-row justify-between items-center py-3 px-5 border border-border rounded-lg'>
-                <Text className='text-sm font-medium'>USAGE</Text>
-                <View className='flex flex-row gap-2'> 
-                  <Text className='text-sm'>20.0kWh</Text>
-                  <Text className='text-sm'>P400</Text>
-                </View>
-              </View>
-
-              <View className='flex flex-row justify-between items-center py-3 px-5 border border-border rounded-lg'>
-                <Text className='text-sm font-medium'>USAGE</Text>
-                <View className='flex flex-row gap-2'> 
-                  <Text className='text-sm'>20.0kWh</Text>
-                  <Text className='text-sm'>P400</Text>
-                </View>
-              </View>
+              {carouselIndex === 0 ? (
+                <AreaChartBottomSheet />
+              ) : carouselIndex === 1 ? (
+                <BarChartBottomSheet />
+              ) : carouselIndex === 2 ? (
+                <RingChartBottomSheet />
+              ) : (
+                <></>
+              )}
+              
             </View>
           </BottomSheetScrollView>
         </BottomSheet>

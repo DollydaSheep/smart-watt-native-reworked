@@ -156,7 +156,7 @@ export default function StackedAreaChart() {
       </View>
 
       {/* Chart */}
-      <VictoryChart padding={{ top: 20, bottom: 40, left: 40, right: 20 }}>
+      <VictoryChart padding={{ top: 30, bottom: 40, left: 40, right: 20 }}>
         {/* gradient defs */}
         <Defs>
           <LinearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
