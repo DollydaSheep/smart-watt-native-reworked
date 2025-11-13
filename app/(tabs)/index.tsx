@@ -15,6 +15,7 @@ import HeroCarouselComponent from '@/components/carousel';
 import { io } from "socket.io-client";
 import EnergySphere3D from '@/components/sphere3D';
 import { DeviceData, NotifData, SensorData } from '@/lib/types';
+import Skeletoncircle from '@/components/skeleton/skeletoncircle';
 
 const LOGO = {
   light: require('@/assets/images/react-native-reusables-light.png'),
@@ -35,6 +36,7 @@ const IMAGE_STYLE: ImageStyle = {
 export default function Screen() {
     
   const [data, setData] = useState<DeviceData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [notif, setNotif] = useState<NotifData[]>([]);
 
   const [bottomScrolled, setBottomScrolled] = useState(false);
@@ -52,6 +54,7 @@ export default function Screen() {
     socket.on("mqtt-device-data", (msg: DeviceData) => {
       console.log("Received mock data:", msg);
       setData(msg);
+      setLoading(false);
     });
 
     return () => {
@@ -114,6 +117,9 @@ export default function Screen() {
       <View className="flex-1 items-center gap-4 p-4">
         <Animated.View className='mt-8 p-4 rounded-lg' style={[animatedStyle]} pointerEvents={bottomScrolled ? 'auto' : 'none'}>
           {/* <View className='p-36 self-center rounded-full bg-green-500'></View> */}
+          {loading && (
+            <Skeletoncircle size={280} />
+          )}
           {data && (
             <HeroCarouselComponent devices={data!.devices} totalUsage={data!.totalUsage} powerLimit={data!.powerLimit} />
           )}
