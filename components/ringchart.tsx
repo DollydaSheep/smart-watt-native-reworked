@@ -27,6 +27,7 @@ export default function ApplianceUsageRingChart() {
         paddingVertical: 8,
         paddingHorizontal: 2,
       }}
+      className="-mt-10"
     >
       {/* Chart */}
       <VictoryPie

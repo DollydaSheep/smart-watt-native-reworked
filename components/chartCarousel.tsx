@@ -1,5 +1,5 @@
 import { Dimensions, View } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSharedValue } from "react-native-reanimated";
 import Carousel, { ICarouselInstance, Pagination } from "react-native-reanimated-carousel";
 import { Text } from '@/components/ui/text';
@@ -11,6 +11,7 @@ import { Device, DeviceData } from '@/lib/types';
 import StackedAreaChart from "./areachart";
 import DailyPeaksBarChart from "./barchart";
 import ApplianceUsageRingChart from "./ringchart";
+import Skeletonbox from "./skeleton/skeletonbox";
 
 const data = [...new Array(3).keys()]
 const width = Dimensions.get("window").width;
@@ -27,6 +28,9 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
   const ref = React.useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);
   const [title, setTitle] = useState(["Total Consumption","Peaks","Appliance Usage"])
+  
+  const [chartData, setChartData] = useState(null)
+  const [loading, setLoading] = useState(true);
 
   const onPressPagination = (index: number) => {
     ref.current?.scrollTo({
@@ -38,6 +42,13 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
       animated: true,
     });
   };
+
+  useEffect(()=>{
+    setLoading(true)
+    setInterval(()=>{
+      setLoading(false);
+    },10000)
+  },[])
 
   return(
     <>
@@ -71,15 +82,36 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
         renderItem={({index}) => 
           index === 0 ? (
             <View className="self-center">
-              <StackedAreaChart />
+              {loading && (
+                <View className="p-4">
+                  <Skeletonbox height={250} />
+                </View>
+              )}
+              {!loading && (
+                <StackedAreaChart />
+              )}
             </View>
           ) : index === 1 ? (
             <View className="self-center w-full">
-              <DailyPeaksBarChart />
+              {loading && (
+                <View className="p-4">
+                  <Skeletonbox height={250} />
+                </View>
+              )}
+              {!loading && (
+                <DailyPeaksBarChart />
+              )}
             </View>
           ): index === 2 ? (
-            <View className="self-center w-full -mt-10">
-              <ApplianceUsageRingChart />
+            <View className="self-center w-full">
+              {loading && (
+                <View className="p-4">
+                  <Skeletonbox height={250} />
+                </View>
+              )}
+              {!loading && (
+                <ApplianceUsageRingChart />
+              )}
             </View>
           ) :(<></>)}
       />

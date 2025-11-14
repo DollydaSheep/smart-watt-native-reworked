@@ -5,17 +5,26 @@ import ChartCarouselComponent from '@/components/chartCarousel';
 import { Text } from '@/components/ui/text';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dimensions, View } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedProps, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import AreaChartBottomSheet from '@/components/areachartbottomsheet';
 import BarChartBottomSheet from '@/components/barchartbottomsheet';
 import RingChartBottomSheet from '@/components/ringchartbottomsheet';
+import Skeletontext from '@/components/skeleton/skeletontext';
 
 export default function StatsTabScreen(){
 
   const [bottomScrolled, setBottomScrolled] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    setInterval(()=>{
+      setLoading(false);
+    },10000)
+  })
 
   const blur = useSharedValue(0);
   
@@ -87,11 +96,19 @@ export default function StatsTabScreen(){
         >
           <BottomSheetScrollView>
             <View className='flex flex-col gap-4 p-4'>
-              {carouselIndex === 0 ? (
+              {loading && (
+                <>
+                  <Skeletontext height={40} />
+                  <Skeletontext height={40} />
+                  <Skeletontext height={40} />
+                  <Skeletontext height={40} />
+                </>
+              )}
+              {!loading && carouselIndex === 0 ? (
                 <AreaChartBottomSheet />
-              ) : carouselIndex === 1 ? (
+              ) : !loading && carouselIndex === 1 ? (
                 <BarChartBottomSheet />
-              ) : carouselIndex === 2 ? (
+              ) : !loading && carouselIndex === 2 ? (
                 <RingChartBottomSheet />
               ) : (
                 <></>

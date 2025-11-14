@@ -156,21 +156,21 @@ export default function StackedAreaChart() {
       </View>
 
       {/* Chart */}
-      <VictoryChart padding={{ top: 30, bottom: 40, left: 40, right: 20 }}>
+      <VictoryChart padding={{ top: 35, bottom: 40, left: 40, right: 20 }}>
         {/* gradient defs */}
         <Defs>
           <LinearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor="#00ff99" stopOpacity="0.6" />
             <Stop offset="100%" stopColor="#00ff99" stopOpacity="0" />
           </LinearGradient>
-          <LinearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+          {/* <LinearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor="#33ccff" stopOpacity="0.4" />
             <Stop offset="100%" stopColor="#33ccff" stopOpacity="0" />
           </LinearGradient>
           <LinearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor="#ff6600" stopOpacity="0.3" />
             <Stop offset="100%" stopColor="#ff6600" stopOpacity="0" />
-          </LinearGradient>
+          </LinearGradient> */}
         </Defs>
 
         <VictoryAxis
@@ -199,21 +199,21 @@ export default function StackedAreaChart() {
             }}
           />
           {/* Middle layer */}
-          <VictoryArea
+          {/* <VictoryArea
             
             data={stacked2}
             style={{
               data: { fill: "url(#grad2)", stroke: "#33ccff", strokeWidth: 2 },
             }}
-          />
+          /> */}
           {/* Top layer */}
-          <VictoryArea
+          {/* <VictoryArea
             
             data={stacked3}
             style={{
               data: { fill: "url(#grad3)", stroke: "#ff6600", strokeWidth: 2 },
             }}
-          />
+          /> */}
         </VictoryGroup>
       </VictoryChart>
     </View>
