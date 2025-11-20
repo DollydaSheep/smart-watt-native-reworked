@@ -38,7 +38,6 @@ export default function TabsLayout(){
                   </View>
                 </>
               )
-              
             },
             tabBarLabel: "Stats",
             tabBarItemStyle: {
@@ -50,6 +49,15 @@ export default function TabsLayout(){
         <Tabs.Screen 
           name="devices"
           options={{
+            header: () => {
+              return(
+                <>
+                  <View className="mt-6 p-4">
+                    <Text className="text-3xl font-medium">Devices</Text>
+                  </View>
+                </>
+              )
+            },
             tabBarLabel: "Devices",
             tabBarItemStyle: {
               marginLeft: 40

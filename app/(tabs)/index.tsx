@@ -5,12 +5,12 @@ import { Link, router, Stack } from 'expo-router';
 import { ChevronRight, Microwave, MoonStarIcon, StarIcon, SunIcon, TrendingUp, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
-import { Dimensions, Image, type ImageStyle, Pressable, ScrollView, View } from 'react-native';
+import { Dimensions, Image, type ImageStyle, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, useAnimatedProps, useAnimatedReaction, Extrapolation, useDerivedValue } from 'react-native-reanimated';
 import { BlurView } from "expo-blur";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { THEME } from '@/lib/theme';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import HeroCarouselComponent from '@/components/carousel';
 import { io } from "socket.io-client";
 import EnergySphere3D from '@/components/sphere3D';
@@ -40,6 +40,8 @@ export default function Screen() {
   const [notif, setNotif] = useState<NotifData[]>([]);
 
   const [bottomScrolled, setBottomScrolled] = useState(false);
+
+  const [renderKey, setRenderKey] = useState(0); 
 
   const { colorScheme } = useColorScheme();
   
@@ -112,8 +114,30 @@ export default function Screen() {
     intensity: blur.value
   }));
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+
+    // RE-RENDER the entire screen
+    setRenderKey(prev => prev + 1);
+
+    // Simulate any loading time + stop refresh icon
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 800);
+  }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+
   return (
     <>
+      <ScrollView key={renderKey} contentContainerStyle={{ flexGrow: 1 }} refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#00c951"
+          colors={["#00c951"]}
+        />
+      }>
       <View className="flex-1 items-center gap-4 p-4">
         <Animated.View className='mt-8 p-4 rounded-lg' style={[animatedStyle]} pointerEvents={bottomScrolled ? 'auto' : 'none'}>
           {/* <View className='p-36 self-center rounded-full bg-green-500'></View> */}
@@ -140,6 +164,7 @@ export default function Screen() {
           backgroundStyle={{ backgroundColor: 'transparent', overflow: "hidden" }}
           handleStyle={{ backgroundColor: 'transparent' }}
           handleIndicatorStyle={{ display: "none" }}
+          
         >
           {/* Example list items */}
           <View className='w-full p-4 flex flex-col mb-4'>
@@ -249,6 +274,7 @@ export default function Screen() {
           
         </BottomSheet>
       </View>
+      </ScrollView>
     </>
   );
 }
