@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { Link, router, Stack } from 'expo-router';
-import { ChevronRight, Microwave, MoonStarIcon, StarIcon, SunIcon, TrendingUp, Zap } from 'lucide-react-native';
+import { ChevronRight, Microwave, MoonStarIcon, StarIcon, SunIcon, TrendingDown, TrendingUp, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Dimensions, Image, type ImageStyle, Pressable, RefreshControl, ScrollView, View } from 'react-native';
@@ -37,6 +37,7 @@ const IMAGE_STYLE: ImageStyle = {
 export default function Screen() {
 
   const { powerLimit, setPowerLimit } = useSmartWatt();
+  const { anomalyLevel, setAnomalyLevel } = useSmartWatt();
     
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,12 +188,16 @@ export default function Screen() {
             </View>
             <View className='flex flex-row justify-between'>
               <View className='flex flex-row items-center gap-1'>
-                <TrendingUp color={"#00c951"} size={12} />
-                <Text className='text-[8px] text-green-500'>Optimized Efficiency</Text>
+                {anomalyLevel === 'warning' ? (
+                  <TrendingDown color={"#efb100"} size={12} />
+                ) : (
+                  <TrendingUp color={"#00c951"} size={12} />
+                )}
+                <Text className={`text-[8px] ${anomalyLevel === 'warning' ? "text-yellow-500" : "text-green-500"}`}>{anomalyLevel === 'warning' ? "Unoptimized" : "Optimized Efficiency"}</Text>
               </View>
               <View className='flex flex-row items-center gap-1'>
-                <View className='p-0.5 rounded-full bg-green-500'></View>
-                <Text className='text-[8px] text-green-500'>0 Anomalies</Text>
+                <View className={`p-0.5 rounded-full ${anomalyLevel === 'warning' ? "bg-yellow-500" : "bg-green-500"}`}></View>
+                <Text className={`text-[8px] ${anomalyLevel === 'warning' ? "text-yellow-500" : "text-green-500"}`}>{anomalyLevel === 'warning' ? "1" : "0"} Anomalies</Text>
               </View>
             </View>
 

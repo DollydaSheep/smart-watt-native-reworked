@@ -93,6 +93,7 @@ function SmallSphere({
 function EnergyCore({ totalUsage }: DeviceData) {
 
   const { powerLimit, setPowerLimit } = useSmartWatt();
+  const { anomalyLevel, setAnomalyLevel } = useSmartWatt();
 
   const meshRef = useRef<THREE.Mesh>(null!);
   const matRef = useRef<THREE.MeshBasicMaterial>(null!);
@@ -108,9 +109,11 @@ function EnergyCore({ totalUsage }: DeviceData) {
     if (usage >= 100){
       targetColorRef.current.set('#ef4444'); // red
       pulseSpeedRef.current = 6;  
+      setAnomalyLevel("warning")
     } else if (usage >= 80) {
       targetColorRef.current.set('#f59e0b'); // yellow
       pulseSpeedRef.current = 2;    
+      setAnomalyLevel("warning")
     } else targetColorRef.current.set('#10b981'); // green
   }, [totalUsage, powerLimit]);
 
