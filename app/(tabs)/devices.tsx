@@ -15,6 +15,7 @@ export default function DevicesTabScreen(){
 
   const [modalColor, setModalColor] = useState<string>("");
   const [modalColorHex, setModalColorHex] = useState<string>("");
+  const [deviceIcon, setDeviceIcon] = useState<string>("")
 
   const handleToggle = (index: number) => {
     setIsEnabled(prev => {
@@ -24,10 +25,11 @@ export default function DevicesTabScreen(){
     });
   };
 
-  const handleModal = (color:string, colorHex:string) => {
+  const handleModal = (color:string, colorHex:string, device:string) => {
     setModalVisible(true);
     setModalColor(color);
     setModalColorHex(colorHex);
+    setDeviceIcon(device);
   }
 
   return(
@@ -74,7 +76,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(0)}
                 />
-                <Pressable onPress={()=>handleModal("blue-400","#51a2ff")}>
+                <Pressable onPress={()=>handleModal("blue-400","#51a2ff","Personal Computer")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />
@@ -106,7 +108,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(1)}
                 />
-                <Pressable onPress={()=>handleModal("purple-500","#8e51ff")}>
+                <Pressable onPress={()=>handleModal("purple-500","#8e51ff","Television")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />
@@ -138,7 +140,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(2)}
                 />
-                <Pressable onPress={()=>handleModal("green-400","#05df72")}>
+                <Pressable onPress={()=>handleModal("green-400","#05df72", "Refrigerator")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />
@@ -170,7 +172,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(3)}
                 />
-                <Pressable onPress={()=>handleModal("foreground",THEME.dark.foreground)}>
+                <Pressable onPress={()=>handleModal("foreground",THEME.dark.foreground, "Microwave")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />
@@ -202,7 +204,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(4)}
                 />
-                <Pressable onPress={()=>handleModal("yellow-400","#fcc800")}>
+                <Pressable onPress={()=>handleModal("yellow-400","#fcc800", "Lights")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />
@@ -225,13 +227,35 @@ export default function DevicesTabScreen(){
                 />
               </Pressable>
               <View className='flex flex-row justify-center mb-4'>
-                <Monitor 
+                {deviceIcon === "Personal Computer" ? (
+                  <Monitor 
                   size={128}
                   color={modalColorHex}
                 />
+                ) : deviceIcon === "Television" ? (
+                  <Tv 
+                  size={128}
+                  color={modalColorHex}
+                />
+                ) : deviceIcon === "Refrigerator" ? (
+                  <Refrigerator 
+                    size={128}
+                    color={modalColorHex}
+                  />
+                ): deviceIcon === "Microwave" ? (
+                  <Microwave 
+                    size={128}
+                    color={modalColorHex}
+                  />
+                ) : deviceIcon === "Lights" ? (
+                  <Lightbulb 
+                    size={128}
+                    color={modalColorHex}
+                  />
+                ) : ""}
               </View>
               <View className='flex flex-column items-center mb-4'>
-                <Text className='text-2xl font-bold'>Personal Computer</Text>
+                <Text className='text-2xl font-bold'>{deviceIcon}</Text>
                 <Text className='text-[10px] text-foreground/60 font-light'>Current Run Time: 01:10 | State Status: On</Text>
               </View>
               <View className='flex flex-row gap-3'>
@@ -259,7 +283,7 @@ export default function DevicesTabScreen(){
                   <View className='flex-1 flex flex-row justify-between items-center'>
                     <Text className='text-xs'>This Week</Text>
                     <View className='flex flex-row gap-3 mr-4'>
-                      <Text className={`text-lg border-b-2 border-${modalColor}`}>WK</Text>
+                      <Text className={`text-lg border-b-2`} style={{borderBottomColor: modalColorHex}}>WK</Text>
                       {/* <Text className='text-lg text-foreground/20'>YR</Text> */}
                     </View>
                   </View>
