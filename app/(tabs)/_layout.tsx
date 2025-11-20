@@ -68,6 +68,15 @@ export default function TabsLayout(){
         <Tabs.Screen 
           name="menu"
           options={{
+            header: () => {
+              return(
+                <>
+                  <View className="mt-6 p-4">
+                    
+                  </View>
+                </>
+              )
+            },
             tabBarLabel: "Menu",
             tabBarIcon: ({color}) => <Menu color={color} size={20} />
           }}

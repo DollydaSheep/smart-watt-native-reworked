@@ -47,7 +47,7 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
     setLoading(true)
     setInterval(()=>{
       setLoading(false);
-    },10000)
+    },2000)
   },[])
 
   return(
