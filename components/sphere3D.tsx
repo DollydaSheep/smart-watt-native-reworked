@@ -5,6 +5,7 @@ import { Canvas, useFrame } from '@react-three/fiber/native';
 import { OrbitControls } from '@react-three/drei/native';
 import * as THREE from 'three';
 import { DeviceData } from '@/lib/types';
+import { useSmartWatt } from '@/lib/context';
 
 // type DeviceData = {
 //   id: number;
@@ -89,26 +90,54 @@ function SmallSphere({
   );
 }
 
-function EnergyCore({ totalUsage, powerLimit }: DeviceData) {
+function EnergyCore({ totalUsage }: DeviceData) {
+
+  const { powerLimit, setPowerLimit } = useSmartWatt();
+
   const meshRef = useRef<THREE.Mesh>(null!);
   const matRef = useRef<THREE.MeshBasicMaterial>(null!);
   const colorRef = useRef(new THREE.Color('#10b981')); // start green
   const targetColorRef = useRef(new THREE.Color('#10b981'));
+  const pulseSpeedRef = useRef(0);
 
   // compute percentage and decide color
   useEffect(() => {
+    console.log(totalUsage,powerLimit);
     const usage = (totalUsage / powerLimit) * 100;
-    if (usage >= 100) targetColorRef.current.set('#ef4444'); // red
-    else if (usage >= 80) targetColorRef.current.set('#f59e0b'); // yellow
-    else targetColorRef.current.set('#10b981'); // green
+    console.log(usage)
+    if (usage >= 100){
+      targetColorRef.current.set('#ef4444'); // red
+      pulseSpeedRef.current = 6;  
+    } else if (usage >= 80) {
+      targetColorRef.current.set('#f59e0b'); // yellow
+      pulseSpeedRef.current = 2;    
+    } else targetColorRef.current.set('#10b981'); // green
   }, [totalUsage, powerLimit]);
+
+  useFrame((state) => {
+    if (!meshRef.current || !matRef.current) return;
+
+    // smooth color transition
+    colorRef.current.lerp(targetColorRef.current, 0.1);
+    matRef.current.color.copy(colorRef.current);
+
+    // pulsation animation
+    if (pulseSpeedRef.current > 0) {
+      const t = state.clock.getElapsedTime();
+      const scale = 1 + Math.sin(t * pulseSpeedRef.current) * 0.015; // 10% pulse
+      meshRef.current.scale.set(scale, scale, scale);
+    } else {
+      // ensure scale resets when green
+      meshRef.current.scale.set(1, 1, 1);
+    }
+  });
 
   return (
     <mesh ref={meshRef}>
       <sphereGeometry args={[1, 25, 25]} />
       <meshBasicMaterial
         ref={matRef}
-        color={'#10b981'}
+        color={targetColorRef.current}
         transparent
         wireframeLinewidth={0}
         wireframe
@@ -131,7 +160,8 @@ const getRadiusFromCenter = (percentage: number) => {
   return 1.0 - proximityVariation; // Radius between 0.85 and 1.0 (staying close to limiter edge)
 };
 
-function OrbitingGroup({ devices, totalUsage, powerLimit }: DeviceData) {
+function OrbitingGroup({ devices, totalUsage }: DeviceData) {
+
   const groupRef = useRef<THREE.Group>(null);
   const orbitGroupRef = useRef<THREE.Group>(null);
 
@@ -143,7 +173,7 @@ function OrbitingGroup({ devices, totalUsage, powerLimit }: DeviceData) {
 
   return (
       <group ref={orbitGroupRef}>
-        <EnergyCore devices={devices} totalUsage={totalUsage} powerLimit={powerLimit} />
+        <EnergyCore devices={devices} totalUsage={totalUsage} />
         {devices.map((device, index) => {
           const angle = (index / devices.length) * Math.PI * 2;
           const radius = getRadiusFromCenter(device.percentage);
@@ -165,7 +195,7 @@ function OrbitingGroup({ devices, totalUsage, powerLimit }: DeviceData) {
 }
 
 
-export default function EnergySphere3D({ devices, totalUsage = 8, powerLimit = 10 }: DeviceData) {
+export default function EnergySphere3D({ devices, totalUsage }: DeviceData) {
 
   return (
     <View style={{ width: 325, height: 325, backgroundColor: 'transparent', borderRadius: 12 }}>
@@ -177,7 +207,7 @@ export default function EnergySphere3D({ devices, totalUsage = 8, powerLimit = 1
         <pointLight position={[3, 3, 3]} intensity={1} />
         <pointLight position={[-3, -3, -3]} intensity={0.3} />
         
-        <OrbitingGroup devices={devices} totalUsage={totalUsage} powerLimit={powerLimit} />
+        <OrbitingGroup devices={devices} totalUsage={totalUsage} />
 
         <OrbitControls
           makeDefault

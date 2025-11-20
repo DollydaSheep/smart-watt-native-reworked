@@ -12,7 +12,7 @@ import { Device, DeviceData } from '@/lib/types';
 const data = [...new Array(2).keys()]
 const width = Dimensions.get("window").width;
 
-export default function HeroCarouselComponent( { devices, totalUsage, powerLimit } : DeviceData){
+export default function HeroCarouselComponent( { devices, totalUsage } : DeviceData){
 
   const { colorScheme } = useColorScheme();
 
@@ -59,7 +59,7 @@ export default function HeroCarouselComponent( { devices, totalUsage, powerLimit
         renderItem={({index}) => 
           index === 0 ? (
             <View className="self-center">
-              <EnergySphere3D devices={devices} totalUsage={totalUsage} powerLimit={powerLimit} />
+              <EnergySphere3D devices={devices} totalUsage={totalUsage} />
             </View>
           ) : index === 1 ? (<View className={`border-8 border-green-500 p-32 rounded-full self-center`}></View>): (<></>)}
       />

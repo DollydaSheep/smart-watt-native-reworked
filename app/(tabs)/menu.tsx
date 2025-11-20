@@ -1,12 +1,44 @@
 import { Text } from '@/components/ui/text';
+import { useSmartWatt } from '@/lib/context';
 import { THEME } from '@/lib/theme';
+import { DeviceData } from '@/lib/types';
 import { Bell, CircleQuestionMark, HandHeart, Key, KeyRound, Monitor, Palette, Zap } from 'lucide-react-native';
-import { useState } from 'react';
-import { ScrollView, View, Image, TextInput } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ScrollView, View, Image, TextInput, Dimensions } from 'react-native';
+import { io } from "socket.io-client";
 
 export default function MenuTabScreen(){
 
-  const [powerLimit, setPowerLimit] = useState("15")
+  const { powerLimit, setPowerLimit } = useSmartWatt();
+
+  const [storePower, setStorePower] = useState('');
+
+  const [data, setData] = useState<DeviceData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const screenWidth = Dimensions.get("window").width;
+
+  const progress = data ? data.totalUsage / powerLimit : 0;
+  const barWidth = progress * screenWidth;
+
+  const socket = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
+
+  useEffect(() => {
+
+    socket.on("mqtt-device-data", (msg: DeviceData) => {
+      console.log("Received mock data:", msg);
+      setData(msg);
+      setLoading(false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(()=>{
+    setStorePower(powerLimit.toString());
+  },[])
 
   return(
     <>
@@ -52,18 +84,26 @@ export default function MenuTabScreen(){
                   <Text className='font-medium text-sm my-2'>Power Limit (kW)</Text>
                   <TextInput 
                     className='px-3 py-1 flex-1 text-foreground bg-foreground/20 rounded-md'
-                    value={powerLimit}
-                    onChangeText={setPowerLimit}
+                    value={storePower}
+                    onChangeText={(text) => {
+                      setStorePower(text);
+                      const parsed = parseInt(text, 10);
+                      if (!isNaN(parsed)) {
+                        setPowerLimit(parsed);
+                        console.log("Power limit updated:", parsed);
+                      }
+                    }}
+                    keyboardType="numeric"
                   />
                 </View>
                 <View className='border-t border-foreground/20 my-2'></View>
                 <View className='p-4 pt-2'>
                   <View className='flex flex-row justify-between mb-2'>
                     <Text className='text-xs'>Usage</Text>
-                    <Text className='text-xs text-green-500'>60% of limit</Text>
+                    <Text className='text-xs text-green-500'>{data ? ((data!.totalUsage/powerLimit) * 100).toFixed(0) : "0"}% of limit</Text>
                   </View>
                   <View className='relative h-2 bg-foreground rounded-full overflow-hidden'>
-                    <View className='w-[60%] h-2 bg-green-500'></View>
+                    <View className={`h-2 bg-green-500`} style={{width: barWidth }}></View>
                   </View>
                 </View>
               </View>

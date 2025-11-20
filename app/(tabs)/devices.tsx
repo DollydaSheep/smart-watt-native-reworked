@@ -106,7 +106,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(1)}
                 />
-                <Pressable onPress={()=>handleModal("violet-500","#8e51ff")}>
+                <Pressable onPress={()=>handleModal("purple-500","#8e51ff")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />

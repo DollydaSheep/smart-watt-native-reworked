@@ -1,4 +1,5 @@
 import '@/global.css';
+import { SmartWattProvider } from '@/lib/context';
 
 import { NAV_THEME } from '@/lib/theme';
 import { ThemeProvider } from '@react-navigation/native';
@@ -20,12 +21,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{flex: 1}}>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        
+          <SmartWattProvider>
           <Stack>
             <Stack.Screen name='(tabs)' options={{headerShown: false}}/>
             <Stack.Screen name='history' />
           </Stack>
-        
+          </SmartWattProvider>
         <PortalHost />
       </ThemeProvider>
     </GestureHandlerRootView>

@@ -16,6 +16,7 @@ import { io } from "socket.io-client";
 import EnergySphere3D from '@/components/sphere3D';
 import { DeviceData, NotifData, SensorData } from '@/lib/types';
 import Skeletoncircle from '@/components/skeleton/skeletoncircle';
+import { useSmartWatt } from '@/lib/context';
 
 const LOGO = {
   light: require('@/assets/images/react-native-reusables-light.png'),
@@ -34,6 +35,8 @@ const IMAGE_STYLE: ImageStyle = {
 };
 
 export default function Screen() {
+
+  const { powerLimit, setPowerLimit } = useSmartWatt();
     
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +65,7 @@ export default function Screen() {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [renderKey]);
 
   const blur = useSharedValue(0);
 
@@ -145,7 +148,7 @@ export default function Screen() {
             <Skeletoncircle size={280} />
           )}
           {data && (
-            <HeroCarouselComponent devices={data!.devices} totalUsage={data!.totalUsage} powerLimit={data!.powerLimit} />
+            <HeroCarouselComponent devices={data!.devices} totalUsage={data!.totalUsage} />
           )}
         </Animated.View>
         {/* <View className='w-full mt-5 p-4 border border-border rounded-lg'>
@@ -179,7 +182,7 @@ export default function Screen() {
                   )}
                   <Text className='text-base font-medium text-gray-600'>kW</Text>
                 </View>
-                <Text className='self-end font-medium text-gray-600 text-base'>/100kW</Text>
+                <Text className='self-end font-medium text-gray-600 text-base'>/{powerLimit} kW</Text>
               </View>
             </View>
             <View className='flex flex-row justify-between'>
