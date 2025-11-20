@@ -236,7 +236,7 @@ export default function DevicesTabScreen(){
               </View>
               <View className='flex flex-row gap-3'>
                 <View className='flex-1 p-2 pb-4 px-4 bg-[#141414] rounded-lg'>
-                  <Text className={`text-${modalColor} font-semibold`}>AVERAGE</Text>
+                  <Text className={`font-semibold`} style={{color: modalColorHex}}>AVERAGE</Text>
                   <View className='flex flex-row items-end'>
                     <Text className='text-3xl font-semibold'>1,857</Text>
                     <Text className='text-2xl font-bold text-foreground/20'>w</Text>
@@ -244,7 +244,7 @@ export default function DevicesTabScreen(){
                   <Text className='text-[10px] font-light text-foreground/60'>When Status is On</Text>
                 </View>
                 <View className='p-2 pb-4 px-4 bg-[#141414] rounded-lg'>
-                  <Text className={`text-${modalColor} font-semibold`}>COST</Text>
+                  <Text className={`font-semibold`} style={{color: modalColorHex}}>COST</Text>
                   <View className='flex flex-row items-end'>
                     <Text className='text-3xl font-semibold'>P520</Text>
                     <Text className='text-2xl font-bold text-foreground/20'>/yr</Text>
@@ -254,7 +254,7 @@ export default function DevicesTabScreen(){
               </View>
               <View className='flex-1 mt-3 mb-4 p-4 bg-[#141414] rounded-lg'>
                 <View className='flex flex-row items-center'>
-                  <Text className={`text-xl text-${modalColor} font-semibold`}>USAGE</Text>
+                  <Text className={`text-xl font-semibold`} style={{color: modalColorHex}}>USAGE</Text>
                   <Text className='px-2'>|</Text>
                   <View className='flex-1 flex flex-row justify-between items-center'>
                     <Text className='text-xs'>This Week</Text>
