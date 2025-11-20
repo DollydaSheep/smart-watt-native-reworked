@@ -8,14 +8,15 @@ import {
   VictoryTheme,
 } from "victory-native";
 
-export default function DeviceUsageBarChart() {
+export default function DeviceUsageBarChart( { colorHex } : { colorHex:string } ) {
   const data = [
-    { x: "2025", y: 35 },
-    { x: "2024", y: 25 },
-    { x: "2023", y: 15 },
-    { x: "2022", y: 10 },
-    { x: "2021", y: 8 },
-    { x: "2020", y: 7 },
+    { x: "Sunday", y: 35 },
+    { x: "Monday", y: 25 },
+    { x: "Tuesday", y: 15 },
+    { x: "Wednesday", y: 10 },
+    { x: "Thursday", y: 8 },
+    { x: "Friday", y: 9 },
+    { x: "Saturday", y: 12 },
   ];
 
   const colors = [
@@ -34,7 +35,7 @@ export default function DeviceUsageBarChart() {
       <VictoryChart
         theme={VictoryTheme.material}
         domainPadding={{ x: 30, y: 20 }}
-        padding={{ top: 10, bottom: 10, left: 60, right: 40 }}
+        padding={{ top: 10, bottom: 50, left: 70, right: 40 }}
         height={220}
         width={320}
       >
@@ -68,7 +69,7 @@ export default function DeviceUsageBarChart() {
         //   }
           style={{
             data: {
-              fill: "#51a2ff", // ✅ Fixed
+              fill: colorHex, // ✅ Fixed
               stroke: "#0a0a0a",
               strokeWidth: 1,
             },

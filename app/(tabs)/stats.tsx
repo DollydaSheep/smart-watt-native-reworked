@@ -23,7 +23,7 @@ export default function StatsTabScreen(){
   useEffect(()=>{
     setInterval(()=>{
       setLoading(false);
-    },10000)
+    },1000)
   })
 
   const blur = useSharedValue(0);

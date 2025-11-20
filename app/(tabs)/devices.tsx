@@ -13,6 +13,9 @@ export default function DevicesTabScreen(){
   const [isEnabled, setIsEnabled] = useState<boolean[]>([true,true,true,true,true]);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const [modalColor, setModalColor] = useState<string>("");
+  const [modalColorHex, setModalColorHex] = useState<string>("");
+
   const handleToggle = (index: number) => {
     setIsEnabled(prev => {
       const updated = [...prev];
@@ -20,6 +23,12 @@ export default function DevicesTabScreen(){
       return updated;
     });
   };
+
+  const handleModal = (color:string, colorHex:string) => {
+    setModalVisible(true);
+    setModalColor(color);
+    setModalColorHex(colorHex);
+  }
 
   return(
     <>
@@ -65,7 +74,7 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(0)}
                 />
-                <Pressable onPress={()=>setModalVisible(true)}>
+                <Pressable onPress={()=>handleModal("blue-400","#51a2ff")}>
                   <EllipsisVertical 
                     color={THEME.light.background}
                   />
@@ -97,9 +106,11 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(1)}
                 />
-                <EllipsisVertical 
-                  color={THEME.light.background}
-                />
+                <Pressable onPress={()=>handleModal("violet-500","#8e51ff")}>
+                  <EllipsisVertical 
+                    color={THEME.light.background}
+                  />
+                </Pressable>
               </View>
             </View>
 
@@ -127,9 +138,11 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(2)}
                 />
-                <EllipsisVertical 
-                  color={THEME.light.background}
-                />
+                <Pressable onPress={()=>handleModal("green-400","#05df72")}>
+                  <EllipsisVertical 
+                    color={THEME.light.background}
+                  />
+                </Pressable>
               </View>
             </View>
 
@@ -157,9 +170,11 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(3)}
                 />
-                <EllipsisVertical 
-                  color={THEME.light.background}
-                />
+                <Pressable onPress={()=>handleModal("foreground",THEME.dark.foreground)}>
+                  <EllipsisVertical 
+                    color={THEME.light.background}
+                  />
+                </Pressable>
               </View>
             </View>
 
@@ -187,9 +202,11 @@ export default function DevicesTabScreen(){
                   size="medium"
                   onToggle={()=>handleToggle(4)}
                 />
-                <EllipsisVertical 
-                  color={THEME.light.background}
-                />
+                <Pressable onPress={()=>handleModal("yellow-400","#fcc800")}>
+                  <EllipsisVertical 
+                    color={THEME.light.background}
+                  />
+                </Pressable>
               </View>
             </View>
             
@@ -210,7 +227,7 @@ export default function DevicesTabScreen(){
               <View className='flex flex-row justify-center mb-4'>
                 <Monitor 
                   size={128}
-                  color={"#51a2ff"}
+                  color={modalColorHex}
                 />
               </View>
               <View className='flex flex-column items-center mb-4'>
@@ -219,7 +236,7 @@ export default function DevicesTabScreen(){
               </View>
               <View className='flex flex-row gap-3'>
                 <View className='flex-1 p-2 pb-4 px-4 bg-[#141414] rounded-lg'>
-                  <Text className='text-blue-400 font-semibold'>AVERAGE</Text>
+                  <Text className={`text-${modalColor} font-semibold`}>AVERAGE</Text>
                   <View className='flex flex-row items-end'>
                     <Text className='text-3xl font-semibold'>1,857</Text>
                     <Text className='text-2xl font-bold text-foreground/20'>w</Text>
@@ -227,7 +244,7 @@ export default function DevicesTabScreen(){
                   <Text className='text-[10px] font-light text-foreground/60'>When Status is On</Text>
                 </View>
                 <View className='p-2 pb-4 px-4 bg-[#141414] rounded-lg'>
-                  <Text className='text-blue-400 font-semibold'>COST</Text>
+                  <Text className={`text-${modalColor} font-semibold`}>COST</Text>
                   <View className='flex flex-row items-end'>
                     <Text className='text-3xl font-semibold'>P520</Text>
                     <Text className='text-2xl font-bold text-foreground/20'>/yr</Text>
@@ -235,20 +252,19 @@ export default function DevicesTabScreen(){
                   <Text className='text-[10px] font-light text-foreground/60'>based on your usage</Text>
                 </View>
               </View>
-              <View className='flex-1 mt-3 mb-8 p-4 bg-[#141414] rounded-lg'>
+              <View className='flex-1 mt-3 mb-4 p-4 bg-[#141414] rounded-lg'>
                 <View className='flex flex-row items-center'>
-                  <Text className='text-xl text-blue-400 font-semibold'>USAGE</Text>
+                  <Text className={`text-xl text-${modalColor} font-semibold`}>USAGE</Text>
                   <Text className='px-2'>|</Text>
                   <View className='flex-1 flex flex-row justify-between items-center'>
-                    <Text className='text-xs'>This Year</Text>
+                    <Text className='text-xs'>This Week</Text>
                     <View className='flex flex-row gap-3 mr-4'>
-                      <Text className='text-lg border-b-2 border-blue-400'>WK</Text>
-                      <Text className='text-lg text-foreground/20'>YR</Text>
-                      <Text className='text-lg text-foreground/20'>WK</Text>
+                      <Text className={`text-lg border-b-2 border-${modalColor}`}>WK</Text>
+                      {/* <Text className='text-lg text-foreground/20'>YR</Text> */}
                     </View>
                   </View>
                 </View>
-                <DeviceUsageBarChart />
+                <DeviceUsageBarChart colorHex={modalColorHex} />
               </View>
             </View>
           </Modal>
