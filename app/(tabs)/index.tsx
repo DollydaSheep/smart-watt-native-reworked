@@ -10,9 +10,9 @@ import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useS
 import { BlurView } from "expo-blur";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { THEME } from '@/lib/theme';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import HeroCarouselComponent from '@/components/carousel';
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import EnergySphere3D from '@/components/sphere3D';
 import { DeviceData, NotifData, SensorData } from '@/lib/types';
 import Skeletoncircle from '@/components/skeleton/skeletoncircle';
@@ -49,24 +49,26 @@ export default function Screen() {
 
   const { colorScheme } = useColorScheme();
   
-  const socket = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    socket.on("mqtt-lights-on", (newNotif: NotifData) => {
-      console.log("Received activity: ", newNotif);
-      setNotif(prev => [...prev, newNotif]);
-    })
+    socketRef.current = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
 
-    socket.on("mqtt-device-data", (msg: DeviceData) => {
+    socketRef.current.on("mqtt-lights-on", (newNotif: NotifData) => {
+      console.log("Received activity:", newNotif);
+      setNotif(prev => [...prev, newNotif]);
+    });
+
+    socketRef.current.on("mqtt-device-data", (msg: DeviceData) => {
       console.log("Received mock data:", msg);
       setData(msg);
       setLoading(false);
     });
 
     return () => {
-      socket.disconnect();
+      socketRef.current?.disconnect();
     };
-  }, [renderKey]);
+  }, []);
 
   const blur = useSharedValue(0);
 
