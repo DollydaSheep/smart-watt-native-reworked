@@ -4,8 +4,10 @@ import { Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ChartNoAxesColumnIncreasing, House, Menu, Monitor } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { View } from "react-native";
+import { Animated, Image, View } from "react-native";
 import { Text } from '@/components/ui/text';
+import Svg, { G, Rect } from "react-native-svg";
+import { useEffect, useRef } from "react";
 
 export default function TabsLayout(){
   const { colorScheme } = useColorScheme();
@@ -13,8 +15,31 @@ export default function TabsLayout(){
   return(
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'}/>
-      <View className="px-3.5 py-3 rounded-full bg-green-500 self-center" style={{position: 'absolute', bottom: 40, elevation: 10, zIndex: 999}}>
-        <Text className="text-4xl font-bold">W</Text>
+      <View className="px-3.5 py-3 rounded-full self-center" style={{position: 'absolute', bottom: 110, elevation: 10, zIndex: 999}}>
+        <Image 
+          source={require('assets/images/smartwattgreen.png')}
+          className="absolute self-center"
+        />
+        <Image 
+          source={require('assets/images/smartwatt.png')}
+          className="absolute self-center animate-pulse transition duration-1000"
+        />
+
+        <Image 
+          source={require('assets/images/smartwattyellow.png')}
+          className="absolute self-center transition duration-300"
+        />
+        <Image 
+          source={require('assets/images/smartwattglassyellow.png')}
+          className="absolute self-center animate-pulse transition duration-1000"
+          
+        />
+
+        <Image 
+          source={require('assets/images/smartwattlogo.png')}
+          className="absolute self-center"
+        />
+    
       </View>
       <Tabs screenOptions={{
         tabBarActiveTintColor: colorScheme === 'dark' ? THEME.dark.foreground : THEME.light.foreground
