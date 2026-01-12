@@ -151,7 +151,7 @@ export default function Screen() {
             <Skeletoncircle size={280} />
           )}
           {data && (
-            <HeroCarouselComponent devices={data!.devices} totalUsage={data!.totalUsage} />
+            <HeroCarouselComponent devices={data!.devices} totalUsage={data!.totalUsage} voltage={data!.voltage} current={data!.current} />
           )}
         </Animated.View>
         {/* <View className='w-full mt-5 p-4 border border-border rounded-lg'>
@@ -187,6 +187,17 @@ export default function Screen() {
                 </View>
                 <Text className='self-end font-medium text-gray-600 text-base'>/{powerLimit} kW</Text>
               </View>
+              {data ? (
+                <>
+                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>{data!.voltage} V</Text>
+                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>{data!.current} A</Text>
+                </>
+              ): (
+                <>
+                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>0 V</Text>
+                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>0 A</Text>
+                </>
+              )}
             </View>
             <View className='flex flex-row justify-between'>
               <View className='flex flex-row items-center gap-1'>
@@ -205,7 +216,7 @@ export default function Screen() {
 
           </View>
           <View className="p-4">
-            <View className='space-y-4 border border-foreground rounded-lg h-[85%]'>
+            <View className='space-y-4 border border-foreground/10 rounded-lg h-[85%]'>
               <Pressable onPress={()=>router.navigate('/history')}>
                 <View className='flex flex-row justify-between items-center px-5 py-4'>
                   <Text className='font-medium'>Today</Text>

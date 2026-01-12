@@ -22,4 +22,6 @@ export type Device = {
 export type DeviceData = {
   devices: Device[];
   totalUsage: number;
+  voltage: number;
+  current: number;
 }

@@ -1,13 +1,14 @@
 import { NAV_THEME, THEME } from "@/lib/theme";
 import { ThemeProvider } from "@react-navigation/native";
-import { Tabs } from "expo-router";
+import { router, Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ChartNoAxesColumnIncreasing, House, Menu, Monitor } from "lucide-react-native";
+import { ChartNoAxesColumnIncreasing, House, Menu, MenuIcon, Monitor } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { Animated, Image, View } from "react-native";
+import { Animated, Image, Pressable, View } from "react-native";
 import { Text } from '@/components/ui/text';
 import Svg, { G, Rect } from "react-native-svg";
 import { useEffect, useRef } from "react";
+import { Icon } from "@/components/ui/icon";
 
 export default function TabsLayout(){
   const { colorScheme } = useColorScheme();
@@ -15,32 +16,54 @@ export default function TabsLayout(){
   return(
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'}/>
-      <View className="px-3.5 py-3 rounded-full self-center" style={{position: 'absolute', bottom: 110, elevation: 10, zIndex: 999}}>
-        <Image 
-          source={require('assets/images/smartwattgreen.png')}
-          className="absolute self-center"
-        />
-        <Image 
-          source={require('assets/images/smartwatt.png')}
-          className="absolute self-center animate-pulse transition duration-1000"
-        />
+      <Pressable onPress={()=>router.push('/(tabs)/chatbot')}
+        style={{
+        position: 'absolute',
+        bottom: 95,
+        alignSelf: 'center',
+        zIndex: 999,
+        elevation: 10,
+      }}
+      >
+        <View className="px-3.5 py-3 rounded-full self-center" >
+          <Image 
+            source={require('assets/images/smartwattgreen.png')}
+            className="absolute self-center"
+            style={{
+              height: 80,
+              width: 80,
+            }}
+          />
+          <Image 
+            source={require('assets/images/smartwatt.png')}
+            className="absolute self-center animate-pulse transition duration-1000"
+            style={{
+              height: 80,
+              width: 80,
+            }}
+          />
 
-        <Image 
-          source={require('assets/images/smartwattyellow.png')}
-          className="absolute self-center transition duration-300"
-        />
-        <Image 
-          source={require('assets/images/smartwattglassyellow.png')}
-          className="absolute self-center animate-pulse transition duration-1000"
-          
-        />
+          {/* <Image 
+            source={require('assets/images/smartwattyellow.png')}
+            className="absolute self-center transition duration-300"
+          />
+          <Image 
+            source={require('assets/images/smartwattglassyellow.png')}
+            className="absolute self-center animate-pulse transition duration-1000"
+            
+          /> */}
 
-        <Image 
-          source={require('assets/images/smartwattlogo.png')}
-          className="absolute self-center"
-        />
-    
-      </View>
+          <Image 
+            source={require('assets/images/smartwattlogo.png')}
+            className="absolute self-center"
+            style={{
+              height: 80,
+              width: 80,
+            }}
+          />
+      
+        </View>
+      </Pressable>
       <Tabs screenOptions={{
         tabBarActiveTintColor: colorScheme === 'dark' ? THEME.dark.foreground : THEME.light.foreground
       }}>
@@ -69,6 +92,24 @@ export default function TabsLayout(){
               marginRight: 40
             },
             tabBarIcon: ({color}) => <ChartNoAxesColumnIncreasing color={color} size={20}/>
+          }}
+        />
+        <Tabs.Screen 
+          name="chatbot"
+          options={{
+            header: () => {
+              return(
+                <>
+                  <View className="flex flex-row ml-3 mt-8 px-4` pt-3 items-end">
+                    <Icon as={MenuIcon} className="text-white/50 size-5" />
+                  </View>
+                </>
+              )
+            },
+            tabBarLabel:"",
+            tabBarItemStyle:{
+              display: "none"
+            }
           }}
         />
         <Tabs.Screen 
