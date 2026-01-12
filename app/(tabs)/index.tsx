@@ -2,10 +2,10 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { Link, router, Stack } from 'expo-router';
-import { ChevronRight, Microwave, MoonStarIcon, StarIcon, SunIcon, TrendingDown, TrendingUp, Zap } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Microwave, MoonStarIcon, StarIcon, SunIcon, TrendingDown, TrendingUp, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
-import { Dimensions, Image, type ImageStyle, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Dimensions, Image, type ImageStyle, Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, useAnimatedProps, useAnimatedReaction, Extrapolation, useDerivedValue } from 'react-native-reanimated';
 import { BlurView } from "expo-blur";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -42,6 +42,8 @@ export default function Screen() {
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notif, setNotif] = useState<NotifData[]>([]);
+
+  const [modalVisible, setModalVisible] = useState(false);
 
   const [bottomScrolled, setBottomScrolled] = useState(false);
 
@@ -174,31 +176,36 @@ export default function Screen() {
         >
           {/* Example list items */}
           <View className='w-full p-4 flex flex-col mb-4'>
-            <View className='flex flex-row gap-2'>
-              <Zap fill={"#00c951"} color={"#00c951"} size={48}/>
-              <View className='flex flex-col'>
-                <View className='flex flex-row items-end gap-2 -mt-1'>
+            <Pressable onPress={()=>setModalVisible(true)}>
+              <View className='flex flex-row gap-2 justify-between'>
+                <View className='flex flex-row gap-2'>
+                  <Zap fill={"#00c951"} color={"#00c951"} size={48}/>
+                  <View className='flex flex-col'>
+                    <View className='flex flex-row items-end gap-2 -mt-1'>
+                      {data ? (
+                        <Text className='text-4xl font-medium'>{data!.totalUsage}</Text>
+                      ): (
+                        <Text className='text-4xl font-medium'>0</Text>
+                      )}
+                      <Text className='text-base font-medium text-gray-600'>kW</Text>
+                    </View>
+                    <Text className='self-end font-medium text-gray-600 text-base'>/{powerLimit} kW</Text>
+                  </View>
                   {data ? (
-                    <Text className='text-4xl font-medium'>{data!.totalUsage}</Text>
+                    <>
+                      <Text className='ml-1 self-end font-medium text-gray-600 text-base'>{data!.voltage} V</Text>
+                      <Text className='ml-1 self-end font-medium text-gray-600 text-base'>{data!.current} A</Text>
+                    </>
                   ): (
-                    <Text className='text-4xl font-medium'>0</Text>
+                    <>
+                      <Text className='ml-1 self-end font-medium text-gray-600 text-base'>0 V</Text>
+                      <Text className='ml-1 self-end font-medium text-gray-600 text-base'>0 A</Text>
+                    </>
                   )}
-                  <Text className='text-base font-medium text-gray-600'>kW</Text>
                 </View>
-                <Text className='self-end font-medium text-gray-600 text-base'>/{powerLimit} kW</Text>
+                <Icon as={ChevronRight} className='size-4 text-foreground mr-2 self-center' />
               </View>
-              {data ? (
-                <>
-                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>{data!.voltage} V</Text>
-                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>{data!.current} A</Text>
-                </>
-              ): (
-                <>
-                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>0 V</Text>
-                  <Text className='ml-1 self-end font-medium text-gray-600 text-base'>0 A</Text>
-                </>
-              )}
-            </View>
+            </Pressable>
             <View className='flex flex-row justify-between'>
               <View className='flex flex-row items-center gap-1'>
                 {anomalyLevel === 'warning' ? (
@@ -295,6 +302,33 @@ export default function Screen() {
           
         </BottomSheet>
       </View>
+      <Modal
+        animationType='fade'
+        transparent={true}
+        visible={modalVisible}
+      >
+        <View className='flex-1 bg-background/80 p-4'>
+          <Pressable onPress={()=>setModalVisible(false)} className='p-2'>
+            <Icon as={ChevronLeft} className='size-5 text-foreground' />
+          </Pressable>
+          <Text>Legend</Text>
+          <View className='flex flex-row gap-2'>
+            <View className='p-1 rounded-full bg-blue-500 self-center'></View>
+            <Text>Refrigerator</Text>
+          </View>
+          <View className='flex flex-row gap-2'>
+            <View className='p-1 rounded-full bg-green-500 self-center'></View>
+            <Text>PC</Text>
+          </View>
+          <View className='flex flex-row gap-2'>
+            <View className='p-1 rounded-full bg-yellow-500 self-center'></View>
+            <Text>Electric Fan</Text>
+          </View>
+          <Text>Current: 10 A</Text>
+          <Text>Voltage: 12 V</Text>
+          <Text>Cost: P39.8</Text>
+        </View>
+      </Modal>
       </ScrollView>
     </>
   );
