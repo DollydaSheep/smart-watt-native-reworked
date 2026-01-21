@@ -9,9 +9,11 @@ import { Text } from '@/components/ui/text';
 import Svg, { G, Rect } from "react-native-svg";
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/ui/icon";
+import { useSmartWatt } from "@/lib/context";
 
 export default function TabsLayout(){
   const { colorScheme } = useColorScheme();
+  const { anomalyLevel, setAnomalyLevel } = useSmartWatt();
 
   return(
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
@@ -26,32 +28,46 @@ export default function TabsLayout(){
       }}
       >
         <View className="px-3.5 py-3 rounded-full self-center" >
-          <Image 
-            source={require('assets/images/smartwattgreen.png')}
-            className="absolute self-center"
-            style={{
-              height: 80,
-              width: 80,
-            }}
-          />
-          <Image 
-            source={require('assets/images/smartwatt.png')}
-            className="absolute self-center animate-pulse transition duration-1000"
-            style={{
-              height: 80,
-              width: 80,
-            }}
-          />
-
-          {/* <Image 
-            source={require('assets/images/smartwattyellow.png')}
-            className="absolute self-center transition duration-300"
-          />
-          <Image 
-            source={require('assets/images/smartwattglassyellow.png')}
-            className="absolute self-center animate-pulse transition duration-1000"
-            
-          /> */}
+          {anomalyLevel === "normal" && (
+            <>
+              <Image 
+                source={require('assets/images/smartwattgreen.png')}
+                className="absolute self-center"
+                style={{
+                  height: 80,
+                  width: 80,
+                }}
+              />
+              <Image 
+                source={require('assets/images/smartwatt.png')}
+                className="absolute self-center animate-pulse transition duration-1000"
+                style={{
+                  height: 80,
+                  width: 80,
+                }}
+              />
+            </>
+          )}
+          {anomalyLevel === 'warning' && (
+            <>
+              <Image 
+                source={require('assets/images/smartwattyellow.png')}
+                className="absolute self-center transition duration-300"
+                style={{
+                  height: 80,
+                  width: 80,
+                }}
+              />
+              <Image 
+                source={require('assets/images/smartwattglassyellow.png')}
+                className="absolute self-center animate-pulse transition duration-1000"
+                style={{
+                  height: 80,
+                  width: 80,
+                }}
+              />
+            </>
+          )}
 
           <Image 
             source={require('assets/images/smartwattlogo.png')}

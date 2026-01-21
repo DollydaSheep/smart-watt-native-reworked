@@ -87,7 +87,7 @@ export default function MenuTabScreen(){
                     value={storePower}
                     onChangeText={(text) => {
                       setStorePower(text);
-                      const parsed = parseInt(text, 10);
+                      const parsed = parseFloat(text);
                       if (!isNaN(parsed)) {
                         setPowerLimit(parsed);
                         console.log("Power limit updated:", parsed);
@@ -100,7 +100,7 @@ export default function MenuTabScreen(){
                 <View className='p-4 pt-2'>
                   <View className='flex flex-row justify-between mb-2'>
                     <Text className='text-xs'>Usage</Text>
-                    <Text className='text-xs text-green-500'>{data ? ((data!.totalUsage/powerLimit) * 100).toFixed(0) : "0"}% of limit</Text>
+                    <Text className='text-xs text-green-500'>{data ? ((data!.totalUsage/powerLimit) * 100).toFixed(2) : "0"}% of limit</Text>
                   </View>
                   <View className='relative h-2 bg-foreground rounded-full overflow-hidden'>
                     <View className={`h-2 bg-green-500`} style={{width: barWidth }}></View>
