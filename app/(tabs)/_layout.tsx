@@ -1,6 +1,6 @@
 import { NAV_THEME, THEME } from "@/lib/theme";
 import { ThemeProvider } from "@react-navigation/native";
-import { router, Tabs } from "expo-router";
+import { router, Stack, Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ChartNoAxesColumnIncreasing, House, Menu, MenuIcon, Monitor } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
@@ -10,10 +10,27 @@ import Svg, { G, Rect } from "react-native-svg";
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/ui/icon";
 import { useSmartWatt } from "@/lib/context";
+import { useAuth } from "@/hooks/useUserRole";
 
 export default function TabsLayout(){
   const { colorScheme } = useColorScheme();
   const { anomalyLevel, setAnomalyLevel } = useSmartWatt();
+  const { user } = useAuth();
+
+  if(user === null){
+    return(
+      <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+        <Stack>
+          <Stack.Screen 
+            name='index'
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack>
+      </ThemeProvider>
+    )
+  }
 
   return(
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
