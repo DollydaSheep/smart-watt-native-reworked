@@ -11,10 +11,21 @@ import { useRef, useEffect } from "react";
 export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 
 	const [signUpScreen, setSignUpScreen] = useState(1);
+	const [direction, setDirection] = useState(1); 
 	const anim = useRef(new Animated.Value(0)).current;
 
+	const goNext = () => {
+		setDirection(1);
+		setSignUpScreen((s) => s + 1);
+	};
+
+	const goBack = () => {
+		setDirection(-1);
+		setSignUpScreen((s) => s - 1);
+	};
+
 	useEffect(() => {
-		anim.setValue(50); // start slightly right
+		anim.setValue(40 * direction); // start slightly right
 
 		Animated.timing(anim, {
 			toValue: 0,
@@ -37,8 +48,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 							style={{
 								alignItems: 'center',
 								opacity: anim.interpolate({
-									inputRange: [0, 50],
-									outputRange: [1, 0],
+									inputRange: [-40, 0, 40],
+									outputRange: [0, 1, 0],
 								}),
 								transform: [{ translateX: anim }],
 							}}
@@ -118,7 +129,7 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={onSwitch}>
 									<Text className="text-sm text-foreground">Back</Text>
 								</Pressable>
-								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>setSignUpScreen(2)}>
+								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>goNext()}>
 									<Text className="text-sm text-foreground">Next</Text>
 								</Pressable>
 							</View>
@@ -128,8 +139,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 							style={{
 								alignItems: 'center',
 								opacity: anim.interpolate({
-									inputRange: [0, 50],
-									outputRange: [1, 0],
+									inputRange: [-40, 0, 40],
+									outputRange: [0, 1, 0],
 								}),
 								transform: [{ translateX: anim }],
 							}}
@@ -152,10 +163,10 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 
 							</View>
 							<View className="flex-row top-52 px-6 gap-20"> 
-								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>setSignUpScreen(1)}>
+								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>goBack()}>
 									<Text className="text-sm text-foreground">Back</Text>
 								</Pressable>
-								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>setSignUpScreen(3)}>
+								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>goNext()}>
 									<Text className="text-sm text-foreground">Next</Text>
 								</Pressable>
 							</View>
@@ -165,8 +176,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 							style={{
 								alignItems: 'center',
 								opacity: anim.interpolate({
-									inputRange: [0, 50],
-									outputRange: [1, 0],
+									inputRange: [-40, 0, 40],
+									outputRange: [0, 1, 0],
 								}),
 								transform: [{ translateX: anim }],
 							}}
@@ -199,7 +210,7 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									/>
 								</View>
 								<View className="flex-row gap-4 pt-12">
-									<Pressable className='flex-1 py-3.5 bg-foreground/5 rounded-full items-center' onPress={()=>setSignUpScreen(2)}>
+									<Pressable className='flex-1 py-3.5 bg-foreground/5 rounded-full items-center' onPress={()=>goBack()}>
 										<Text className="text-sm text-foreground">Back</Text>
 									</Pressable>
 									<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>setSignUpScreen(1)}>

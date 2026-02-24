@@ -39,7 +39,7 @@ export default function LoginScreen({ onSwitch }: { onSwitch: () => void }) {
   };
 
 	useEffect(() => {
-		anim.setValue(50); // start slightly right
+		anim.setValue(-40); // start slightly right
 
 		Animated.timing(anim, {
 			toValue: 0,
@@ -55,8 +55,8 @@ export default function LoginScreen({ onSwitch }: { onSwitch: () => void }) {
 				alignItems: 'center',
 				flex: 1,
 				opacity: anim.interpolate({
-					inputRange: [0, 50],
-					outputRange: [1, 0],
+					inputRange: [-40, 0 , 40],
+					outputRange: [0, 1, 0],
 				}),
 				transform: [{ translateX: anim }],
 			}}
