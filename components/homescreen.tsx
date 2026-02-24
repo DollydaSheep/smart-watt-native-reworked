@@ -190,7 +190,7 @@ export default function HomeScreen() {
                 <Icon as={ChevronRight} className='size-4 text-foreground mr-2 self-center' />
               </View>
             </Pressable>
-            <View className='flex flex-row justify-between'>
+            <View className='flex flex-row justify-between pt-2'>
               <View className='flex flex-row items-center gap-1'>
                 {anomalyLevel === 'warning' ? (
                   <TrendingDown color={"#efb100"} size={12} />
@@ -207,7 +207,7 @@ export default function HomeScreen() {
 
           </View>
           <View className="p-4">
-            <View className='space-y-4 border border-foreground/10 rounded-lg h-[85%]'>
+            <View className='space-y-4 border border-foreground/5 rounded-lg h-[85%]'>
               <Pressable onPress={()=>router.navigate('/history')}>
                 <View className='flex flex-row justify-between items-center px-5 py-4'>
                   <Text className='font-medium'>Today</Text>

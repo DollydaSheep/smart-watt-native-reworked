@@ -3,8 +3,11 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { ArrowUp, Copy, Ellipsis, Mic, Plus, ThumbsDown, ThumbsUp } from 'lucide-react-native';
 import { useState, useEffect, useRef } from 'react';
-import { Platform, ScrollView, TextInput, View, Pressable } from 'react-native';
+import { Platform, ScrollView, TextInput, View, Pressable, Image } from 'react-native';
 import { KeyboardProvider, KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { Animated, Easing } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 
 // Typing Animation Component
 function TypingText({ text, speed, onComplete }: { text: string; speed?: number; onComplete?: () => void }) {
@@ -51,6 +54,21 @@ export default function ChatBotTabScreen(){
 	const [inputText, setInputText] = useState('');
 	const [isAiTyping, setIsAiTyping] = useState(false);
 	const scrollViewRef = useRef<ScrollView>(null);
+
+	const anim = useRef(new Animated.Value(0)).current;
+
+	useFocusEffect(
+		useCallback(() => {
+			anim.setValue(80);
+
+			Animated.timing(anim, {
+				toValue: 0,
+				duration: 750,
+				easing: Easing.out(Easing.cubic),
+				useNativeDriver: true,
+			}).start();
+		}, [])
+	);
 
 	// Mock AI responses based on user input
 	const getMockResponse = (userMessage: string): string => {
@@ -122,7 +140,7 @@ export default function ChatBotTabScreen(){
 					keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
 					className='flex-1'
 				>
-					<View className='flex-1 p-4'>
+					<View className='flex-1'>
 						<ScrollView 
 							ref={scrollViewRef}
 							className='flex-1'
@@ -131,7 +149,7 @@ export default function ChatBotTabScreen(){
 							contentContainerStyle={{ paddingTop: 20 }}
 						>
 							{messages.map((message) => (
-								<View key={message.id} className='flex flex-col mb-6'>
+								<View key={message.id} className='flex flex-col mb-6 p-4'>
 									{message.isUser ? (
 										// User message
 										<View className='flex flex-row self-end items-start gap-3'>
@@ -184,35 +202,39 @@ export default function ChatBotTabScreen(){
 							)}
 						</ScrollView>
 						
-						<View className='px-3 py-2.5 bg-foreground/10 flex flex-row rounded-lg items-center justify-between mb-10'>
-							<View className='flex flex-row gap-2 items-center flex-1'>
-								<SmartWattIcon size={28} />
-								<TextInput 
-									className='flex-1 py-1 text-white text-sm'
-									placeholder='Message Julius Ass'
-									placeholderTextColor='rgba(255, 255, 255, 0.3)'
-									multiline
-									maxLength={500}
-									value={inputText}
-									onChangeText={setInputText}
-									onSubmitEditing={handleSend}
-									editable={!isAiTyping}
-								/>
-							</View>
-							<View className='flex flex-row items-center gap-1.5'>
-								<Pressable>
-									<Icon as={Plus} className='size-5 text-white/70' />
-								</Pressable>
-								<Pressable>
-									<Icon as={Mic} className='size-4 text-white/70' />
-								</Pressable>
-								<Pressable onPress={handleSend} disabled={!inputText.trim() || isAiTyping}>
-									<View className={`p-1 rounded-full ${inputText.trim() && !isAiTyping ? 'bg-white' : 'bg-white/30'}`}>
-										<Icon as={ArrowUp} className='size-3 text-black' />
-									</View>
-								</Pressable>
-							</View>
-						</View>
+						<Animated.View
+							style={{
+								alignItems: 'center',
+								flex: 1,
+								opacity: anim.interpolate({
+									inputRange: [-40, 0 , 40],
+									outputRange: [0, 1, 0],
+								}),
+								transform: [{ translateY: anim }],
+							}}
+						>
+							{/* <Image source={require('@/assets/images/ChadGreen.png')} className='self-end top-36'
+								style={{
+									width: 300,
+									height: 300,
+									resizeMode: 'contain',
+								}}
+							/> */}
+							{/* <Image source={require('@/assets/images/ChadYellow.png')} className='self-end top-32'
+								style={{
+									width: 300,
+									height: 300,
+									resizeMode: 'contain',
+								}}
+							/> */}
+							<Image source={require('@/assets/images/ChadRed.png')} className='self-end top-32'
+								style={{
+									width: 300,
+									height: 300,
+									resizeMode: 'contain',
+								}}
+							/>
+						</Animated.View>
 					</View>
 				</KeyboardAvoidingView>
 			</View>
