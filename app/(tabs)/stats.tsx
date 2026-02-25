@@ -21,6 +21,7 @@ export default function StatsTabScreen(){
   const [bottomScrolled, setBottomScrolled] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [confirmedDate, setConfirmedDate] = useState("");
 
   const [loading, setLoading] = useState(true);
 
@@ -80,16 +81,35 @@ export default function StatsTabScreen(){
     intensity: blur.value
   }));
 
+  const today = new Date().toISOString().split("T")[0];
 
   return(
     <>
       <View className='flex-1 items-center p-4'> 
         {carouselIndex === 0 ? (
-          <Pressable className='self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10'
-            onPress={()=>setCalendarModalOpen(true)}
-          >
-            <Text className='text-sm font-light'>Today</Text>
-          </Pressable>
+          <>
+            {confirmedDate === today ? (
+              <Pressable className='self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10'
+                onPress={()=>setCalendarModalOpen(true)}
+              >
+                <Text className='text-sm font-light'>Today</Text>
+              </Pressable>
+            ) : (
+              <>
+                <Pressable className='self-end absolute -top-12 right-6 bg-green-600 rounded-full px-6 py-1 z-10'
+                  onPress={()=>setCalendarModalOpen(true)}
+                >
+                  <Text className='text-sm font-light'>
+                    {new Date(confirmedDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </>
         ): null}
         <Animated.View style={[animatedStyle]} className="-mt-6">
           <ChartCarouselComponent carouselIndex={carouselIndex} setCarouselIndex={setCarouselIndex} />
@@ -136,15 +156,13 @@ export default function StatsTabScreen(){
             animationType="fade"
           >
             <View className='flex-1 bg-background/70 items-center justify-center'>
-              <CalendarComponent />
-              <View className='flex-row gap-12 px-12 pt-4'>
-                <Pressable className='flex-1 py-2 bg-background border border-foreground/50 rounded-full items-center justify-center' onPress={()=>setCalendarModalOpen(false)}>
-                  <Text className='text-sm'>BACK</Text>
-                </Pressable>
-                <Pressable className='flex-1 py-2 bg-green-600 rounded-full items-center justify-center' >
-                  <Text className='text-sm'>CONFIRM</Text>
-                </Pressable>
-              </View>
+              <CalendarComponent  
+                setCalendarModalOpen={(open) => setCalendarModalOpen(open)}
+                onConfirm={(date, iso) => {
+                  setConfirmedDate(date);
+                  console.log("confirmed:", date, iso);
+                }}
+              />
             </View>
           </Modal>
         )}

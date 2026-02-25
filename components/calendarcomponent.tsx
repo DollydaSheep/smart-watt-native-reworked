@@ -3,9 +3,10 @@ import { useColorScheme } from "nativewind";
 import { useState } from "react";
 import { Calendar, CalendarList, Agenda } from 'react-native-calendars';
 import { Text } from '@/components/ui/text';
+import { Pressable, View } from "react-native";
 
 
-export default function CalendarComponent(){
+export default function CalendarComponent({ onConfirm, setCalendarModalOpen } : { onConfirm?: (date: string, iso: string) => void; setCalendarModalOpen?: (open: boolean) => void}) {
 	const { colorScheme } = useColorScheme();
 	
 	const today = new Date().toISOString().split("T")[0];
@@ -47,7 +48,6 @@ export default function CalendarComponent(){
 					console.log('selected day', day);
 					setSelectedDate(day.dateString);
 					setSelectedDateTimeStamp(new Date(day.timestamp).toISOString())
-					
 				}}
 				// Hide month navigation arrows. Default = false
 				hideArrows={false}
@@ -81,8 +81,24 @@ export default function CalendarComponent(){
 						},
 					}),
 				}}
-			
 			/>
+
+			<View className='flex-row gap-12 px-12 pt-4'>
+				<Pressable className='flex-1 py-2 bg-background border border-foreground/50 rounded-full items-center justify-center' onPress={()=>setCalendarModalOpen?.(false)}>
+					<Text className='text-sm'>BACK</Text>
+				</Pressable>
+				<Pressable className='flex-1 py-2 bg-green-600 rounded-full items-center justify-center' 
+					onPress={() => {
+						if (!selectedDate) return;
+
+						onConfirm?.(selectedDate, selectedDateTimeStamp);
+						setCalendarModalOpen?.(false);
+					}}
+				>
+					<Text className='text-sm'>CONFIRM</Text>
+				</Pressable>
+			</View>
+			
 		</>
 	)
 }
