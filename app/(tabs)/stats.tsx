@@ -18,10 +18,12 @@ import CalendarComponent from '@/components/calendarcomponent';
 
 export default function StatsTabScreen(){
 
+  const today = new Date().toISOString().split("T")[0];
+
   const [bottomScrolled, setBottomScrolled] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
-  const [confirmedDate, setConfirmedDate] = useState("");
+  const [confirmedDate, setConfirmedDate] = useState(today);
 
   const [loading, setLoading] = useState(true);
 
@@ -80,8 +82,6 @@ export default function StatsTabScreen(){
   const animatedProps = useAnimatedProps(() => ({
     intensity: blur.value
   }));
-
-  const today = new Date().toISOString().split("T")[0];
 
   return(
     <>

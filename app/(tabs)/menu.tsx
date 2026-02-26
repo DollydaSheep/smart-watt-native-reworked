@@ -2,10 +2,17 @@ import { Text } from '@/components/ui/text';
 import { useSmartWatt } from '@/lib/context';
 import { THEME } from '@/lib/theme';
 import { DeviceData } from '@/lib/types';
-import { Bell, CircleQuestionMark, HandHeart, Key, KeyRound, Monitor, Palette, Zap } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, CircleQuestionMark, HandHeart, Key, KeyRound, Monitor, Palette, Zap } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Image, TextInput, Dimensions } from 'react-native';
+import { ScrollView, View, Image, TextInput, Dimensions, Pressable } from 'react-native';
 import { io } from "socket.io-client";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { Icon } from '@/components/ui/icon';
 
 export default function MenuTabScreen(){
 
@@ -20,6 +27,8 @@ export default function MenuTabScreen(){
 
   const progress = data ? data.totalUsage / powerLimit : 0;
   const barWidth = progress * screenWidth;
+
+  const isOpen = useSharedValue(false);
 
   const socket = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
 
@@ -40,6 +49,42 @@ export default function MenuTabScreen(){
     setStorePower(powerLimit.toString());
   },[])
 
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      maxHeight: withTiming(isOpen.value ? 220 : 0, {
+        duration: 420,
+        easing: Easing.bezier(0.22, 1, 0.36, 1), // smooth premium easing
+      }),
+      opacity: withTiming(isOpen.value ? 1 : 0, {
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+      }),
+      transform: [
+        {
+          translateY: withTiming(isOpen.value ? 0 : -8, {
+            duration: 420,
+            easing: Easing.bezier(0.22, 1, 0.36, 1),
+          }),
+        },
+      ],
+    };
+  });
+
+  const toggleDropdown = () => {
+    isOpen.value = !isOpen.value;
+  };
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: withTiming(isOpen.value ? "180deg" : "0deg", {
+          duration: 350,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
+        }),
+      },
+    ],
+  }));
+
   return(
     <>
       <ScrollView>
@@ -49,19 +94,31 @@ export default function MenuTabScreen(){
           </View>
 
           <View className='flex flex-column items-center justify-center py-8 px-4 border-b border-border'>
-            <View className='flex flex-row items-center gap-4'>
+            
+            <Pressable className='flex flex-row items-center gap-4' onPress={toggleDropdown}>
               <View className='p-4 self-center rounded-full bg-green-500'>
                 <Zap 
                   color={"#fff"}
                   fill={"#fff"}
                 />
               </View>
-              <View className='flex-1 py-2 px-4 bg-foreground/10 rounded-lg'>
-                <Text className='text-2xl font-semibold'>15.0 kW</Text>
-                <Text className='text-xs text-foreground/40'>Power Limit</Text>
+              <View className='flex-1 py-2 px-4 bg-foreground/10 rounded-lg flex-row items-center justify-between'>
+                <View className=''>
+                  <Text className='text-2xl font-semibold'>15.0 kW</Text>
+                  <Text className='text-xs text-foreground/40'>Power Limit</Text>
+                </View>
+                <Animated.View style={iconStyle}>
+                  <Icon
+                    as={ChevronDown}
+                    size={20}
+                    color={THEME.dark.foreground}
+                  />
+                </Animated.View>
               </View>
-            </View>
-            <View className='flex flex-row items-center gap-4 mt-2'>
+            </Pressable>
+            
+
+            <Animated.View style={[animatedStyle, { overflow: "hidden" }]} className='flex flex-row items-center gap-4 mt-2'>
               <View className='p-4 self-center rounded-full bg-green-500 opacity-0'>
                 <Zap 
                   color={"#fff"}
@@ -107,7 +164,8 @@ export default function MenuTabScreen(){
                   </View>
                 </View>
               </View>
-            </View>
+            </Animated.View>
+
           </View>
 
           <View className='p-8 flex flex-column gap-4'>
