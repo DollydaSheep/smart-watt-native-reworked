@@ -1,4 +1,4 @@
-import { KeyboardAvoidingView, Platform, View, Image, TextInput, Pressable } from "react-native";
+import { KeyboardAvoidingView, Platform, View, Image, TextInput, Pressable, Alert } from "react-native";
 import { Text } from "./ui/text";
 import { useState } from "react";
 import { OtpInput } from "react-native-otp-entry";
@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react-native";
 import { Icon } from "./ui/icon";
 import { Animated, Easing } from "react-native";
 import { useRef, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 
 export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
@@ -13,6 +14,14 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 	const [signUpScreen, setSignUpScreen] = useState(1);
 	const [direction, setDirection] = useState(1); 
 	const anim = useRef(new Animated.Value(0)).current;
+
+	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
+	const [serialKey, setSerialKey] = useState("");
+	const [otp, setOtp] = useState("");
 
 	const goNext = () => {
 		setDirection(1);
@@ -34,6 +43,81 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 			useNativeDriver: true,
 		}).start();
 	}, [signUpScreen]);
+
+	const handleNext = () => {
+		if(!email || !password || !firstName || !lastName) {
+			Alert.alert("Error", "Please fill in all fields.");
+			return;
+		}
+
+		if(password !== confirmPassword) {
+			Alert.alert("Error", "Passwords do not match.");
+			return;
+		}
+
+		goNext();
+	}
+
+	const sendOtp = async () => {
+		const { error } = await supabase.auth.signInWithOtp({
+			email,
+			options: {
+				shouldCreateUser: true, // creates user if they don't exist
+			},
+		})
+
+		if (error) throw error
+	}
+	
+	const handleValidateSerial = async () => {
+		const { data, error } = await supabase.rpc('check_serial_available', {
+			input_key: serialKey,
+		})
+
+		if (error) throw error
+
+		if (data !== 'available') {
+			console.log(data);
+			throw new Error('Invalid or already used serial key')
+		}
+
+		sendOtp();
+
+		goNext();
+	}
+
+	const handleSignUp = async () => {
+
+		const { data, error } = await supabase.auth.verifyOtp({
+			email,
+			token: otp,
+			type: 'email',
+		})
+
+		if (error) throw error
+
+		const user = data.user
+		if (!user) throw new Error('Verification failed')
+
+		// Insert profile
+		await supabase.from('profiles').insert({
+			id: user.id,
+			first_name: firstName,
+			last_name: lastName,
+			email: email,
+			created_at: new Date()
+		})
+
+		// Activate serial
+		const { data: activationResult } = await supabase.rpc(
+			'activate_serial',
+			{ input_key: serialKey }
+		)
+
+		if (activationResult !== 'success') {
+			throw new Error('Serial activation failed')
+		}
+	}
 
 	return(
 		<View className='flex-1 items-center justify-center'>
@@ -65,8 +149,10 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 										}}
 									/>
 									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
-										placeholder='Username'
+										placeholder='Email Address'
 										placeholderTextColor={'#ffffff60'}
+										value={email}
+										onChangeText={setEmail}
 									/>
 								</View>
 
@@ -80,6 +166,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
 										placeholder='First Name'
 										placeholderTextColor={'#ffffff60'}
+										value={firstName}
+										onChangeText={setFirstName}
 									/>
 								</View>
 
@@ -93,6 +181,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
 										placeholder='Last Name'
 										placeholderTextColor={'#ffffff60'}
+										value={lastName}
+										onChangeText={setLastName}
 									/>
 								</View>
 							</View>
@@ -107,6 +197,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
 										placeholder='Password'
 										placeholderTextColor={'#ffffff60'}
+										value={password}
+										onChangeText={setPassword}
 									/>
 								</View>
 
@@ -120,6 +212,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
 										placeholder='Confirm Password'
 										placeholderTextColor={'#ffffff60'}
+										value={confirmPassword}
+										onChangeText={setConfirmPassword}
 									/>
 								</View>
 
@@ -129,7 +223,7 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={onSwitch}>
 									<Text className="text-sm text-foreground">Back</Text>
 								</Pressable>
-								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>goNext()}>
+								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>handleNext()}>
 									<Text className="text-sm text-foreground">Next</Text>
 								</Pressable>
 							</View>
@@ -158,6 +252,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
 										placeholder='Enter Serial Key'
 										placeholderTextColor={'#ffffff60'}
+										value={serialKey}
+										onChangeText={setSerialKey}
 									/>
 								</View>
 
@@ -166,7 +262,7 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>goBack()}>
 									<Text className="text-sm text-foreground">Back</Text>
 								</Pressable>
-								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>goNext()}>
+								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>handleValidateSerial()}>
 									<Text className="text-sm text-foreground">Next</Text>
 								</Pressable>
 							</View>
@@ -186,14 +282,14 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 								<Text className='text-5xl font-bold'>Verification</Text>
 								<Text className='text-sm text-foreground/50 mt-2 text-center'>verify account by entering the otp sent to your email</Text>
 								<View className="pt-8">
-									<OtpInput numberOfDigits={4} 
+									<OtpInput numberOfDigits={8} 
 										theme={{
 											containerStyle: {
-												gap: 12
+												gap: 4
 											},
 											pinCodeContainerStyle: {
-												width: 65,
-												height: 65,
+												width: 35,
+												height: 45,
 												backgroundColor: '#ffffff20',
 												borderColor: '#ffffff0',
 												borderWidth: 2
@@ -207,6 +303,7 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 												borderWidth: 1
 											}
 										}}
+										onTextChange={setOtp}
 									/>
 								</View>
 								<View className="flex-row gap-4 pt-12">
@@ -216,7 +313,7 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>setSignUpScreen(1)}>
 										<Text className="text-sm text-foreground">Resend</Text>
 									</Pressable>
-									<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>setSignUpScreen(3)}>
+									<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>handleSignUp()}>
 										<Text className="text-sm text-foreground">Next</Text>
 									</Pressable>
 								</View>
