@@ -17,6 +17,9 @@ import EnergySphere3D from '@/components/sphere3D';
 import { DeviceData, NotifData, SensorData } from '@/lib/types';
 import Skeletoncircle from '@/components/skeleton/skeletoncircle';
 import { useSmartWatt } from '@/lib/context';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const NOTIF_CACHE_KEY = "smartwatt_notifications";
 
 export default function HomeScreen() {
 
@@ -38,11 +41,31 @@ export default function HomeScreen() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+
+    const loadCachedNotif = async () => {
+      const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+
+      if (cached) {
+        setNotif(JSON.parse(cached));
+      }
+    };
+
+    loadCachedNotif();
+
     socketRef.current = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
 
-    socketRef.current.on("mqtt-lights-on", (newNotif: NotifData) => {
+    socketRef.current.on("mqtt-event-trigger", (newNotif: NotifData) => {
       console.log("Received activity:", newNotif);
-      setNotif(prev => [...prev, newNotif]);
+      setNotif(prev => {
+        const updated = [newNotif, ...prev];
+        
+        AsyncStorage.setItem(
+          NOTIF_CACHE_KEY,
+          JSON.stringify(updated)
+        );
+
+        return updated
+      });
     });
 
     socketRef.current.on("mqtt-device-data", (msg: DeviceData) => {
@@ -225,58 +248,43 @@ export default function HomeScreen() {
                   <View className='flex flex-col gap-2'>
                     
                     {notif && (
-                      notif.map((n) => (
-                        <View className='flex flex-row p-4 gap-2'>
+                      notif.map((n,index) => (
+                        <View key={index} className='flex flex-row p-4 gap-2'>
                           <View className='px-3 py-2 bg-gray-800 rounded-lg'>
                             <Microwave color={'#fff'} size={36}/>
                           </View>
                           <View>
-                            <Text className='text-xs text-gray-600'>{n.time}</Text>
+                            <Text className='text-xs text-gray-600'>
+                              {(() => {
+                                const date = new Date(n.time);
+                                const now = new Date();
+                                const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+                                if (diffHours >= 24) {
+                                  // ✅ show date + time if older than 24 hours
+                                  return date.toLocaleDateString([], {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true
+                                  }); // "Mar 3, 08:58 PM"
+                                } else {
+                                  // ✅ show time only if within 24 hours
+                                  return date.toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true
+                                  }); // "08:58 PM"
+                                }
+                              })()}
+                            </Text>
                             <Text className='font-medium'>{n.message}</Text>
                           </View>
                         </View>
                       ))
                     )}
-
-                    <View className='flex flex-row p-4 gap-2'>
-                      <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                        <Microwave color={'#fff'} size={36}/>
-                      </View>
-                      <View>
-                        <Text className='text-xs text-gray-600'>5:00 AM</Text>
-                        <Text className='font-medium'>Microwave turned on</Text>
-                      </View>
-                    </View>  
-
-                    <View className='flex flex-row p-4 gap-2'>
-                      <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                        <Microwave color={'#fff'} size={36}/>
-                      </View>
-                      <View>
-                        <Text className='text-xs text-gray-600'>5:00 AM</Text>
-                        <Text className='font-medium'>Microwave turned on</Text>
-                      </View>
-                    </View>  
-
-                    <View className='flex flex-row p-4 gap-2'>
-                      <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                        <Microwave color={'#fff'} size={36}/>
-                      </View>
-                      <View>
-                        <Text className='text-xs text-gray-600'>5:00 AM</Text>
-                        <Text className='font-medium'>Microwave turned on</Text>
-                      </View>
-                    </View>  
-
-                    <View className='flex flex-row p-4 gap-2'>
-                      <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                        <Microwave color={'#fff'} size={36}/>
-                      </View>
-                      <View>
-                        <Text className='text-xs text-gray-600'>5:00 AM</Text>
-                        <Text className='font-medium'>Microwave turned on</Text>
-                      </View>
-                    </View>                   
+        
 
                     
                   </View>

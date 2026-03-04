@@ -3,13 +3,18 @@ import { Dimensions, Pressable, ScrollView, TouchableOpacity, View } from "react
 import { Text } from '@/components/ui/text';
 import { Edit, Ellipsis, EllipsisVertical, LayoutPanelLeft, Microwave, Share2, Trash2 } from "lucide-react-native";
 import BottomSheet from "@gorhom/bottom-sheet";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Animated, { Extrapolation, interpolate, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { NotifData } from '@/lib/types';
+
+const NOTIF_CACHE_KEY = "smartwatt_notifications";
 
 export default function HistoryScreen(){
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [notif, setNotif] = useState<NotifData[]>([]);
 
   const sheetRef = useRef<BottomSheet>(null);
 
@@ -51,6 +56,18 @@ export default function HistoryScreen(){
     opacity: opacity.value,
   }));
 
+  useEffect(()=>{
+    const loadCachedNotif = async () => {
+      const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+
+      if (cached) {
+        setNotif(JSON.parse(cached));
+      }
+    };
+
+    loadCachedNotif();
+  }, []);
+
   useAnimatedReaction(
     () => animatedPosition.value,
     (pos) => {
@@ -80,166 +97,63 @@ export default function HistoryScreen(){
       <View className="flex-1">
         <Animated.ScrollView nestedScrollEnabled className="flex-1 p-4 mb-10" >
           <Pressable onPress={pressOpacityBackground}>
-          <Animated.View style={[animatedStyle]}>
-            <Text className="text-xl text-green-500 mb-4">This Week</Text>
-            <View className="p-2 gap-6">
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <Pressable onPress={openSheet}>
-                  <EllipsisVertical 
-                    color={'#fff'}
-                  />
-                </Pressable>
-              </View>  
+          {/* ✅ Helper to group notifications by date */}
+          {notif && (() => {
+            const groups: Record<string, typeof notif> = {};
 
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
+            notif.forEach((n) => {
+              const date = new Date(n.time);
+              const now = new Date();
+              const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
+              // ✅ Generate label based on how old the notification is
+              let label: string;
+              if (diffDays === 0) label = "Today";
+              else if (diffDays === 1) label = "Yesterday";
+              else if (diffDays <= 7) label = "This Week";
+              else if (diffDays <= 30) label = "This Month";
+              else label = date.toLocaleDateString([], { month: "long", year: "numeric" }); // "January 2026"
 
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
+              if (!groups[label]) groups[label] = [];
+              groups[label].push(n);
+            });
 
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
+            return Object.entries(groups).map(([label, items]) => (
+              <Animated.View key={label} style={[animatedStyle]}>
+                <Text className="text-xl text-green-500 mb-4">{label}</Text>
+                <View className="p-2 gap-6">
+                  {items.map((n, index) => (
+                    <View key={index} className='flex flex-row justify-between items-center'>
+                      <View className="flex flex-row items-center gap-2">
+                        <View className='px-3 py-2 bg-gray-800 rounded-lg'>
+                          <Microwave color={'#fff'} size={36}/>
+                        </View>
+                        <View className="gap-1">
+                          <Text className='text-sm font-medium'>{n.message}</Text>
+                          <Text className='text-[10px] text-gray-600'>
+                            {new Date(n.time).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true
+                            })}
+                            {" | "}
+                            {new Date(n.time).toLocaleDateString([], {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric"
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                      <Pressable onPress={openSheet}>
+                        <EllipsisVertical color={'#fff'}/>
+                      </Pressable>
+                    </View>
+                  ))}
                 </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
-
-            </View>
-            <Text className="text-xl text-green-500 my-4">Last Week</Text>
-            <View className="p-2 pb-8 gap-6">
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
-
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
-
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
-
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
-
-              <View className='flex flex-row justify-between items-center'>
-                <View className="flex flex-row items-center gap-2">
-                  <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                    <Microwave color={'#fff'} size={36}/>
-                  </View>
-                  <View className="gap-1">
-                    <Text className='text-sm font-medium'>Microwave turned on</Text>
-                    <Text className='text-[10px] text-gray-600'>5:00 AM | 31/10/2025</Text>
-                  </View>
-                </View>
-                <EllipsisVertical 
-                  color={'#fff'}
-                />
-              </View>  
-
-            </View>
-          </Animated.View>
+              </Animated.View>
+            ));
+          })()}
           </Pressable>
         </Animated.ScrollView>
         
