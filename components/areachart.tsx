@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
 import {
   VictoryChart,
@@ -8,9 +8,39 @@ import {
 } from "victory-native";
 import { Defs, LinearGradient, Stop } from "react-native-svg";
 import { Text } from "@/components/ui/text";
+import { useStats } from "@/lib/statsContext";
 
 export default function StackedAreaChart() {
-  const [mode, setMode] = useState<"week" | "month" | "year">("month");
+  const [mode, setMode] = useState<"daily" |"week" | "month" | "year">("month");
+  const [dailySeries, setDailySeries] = useState([]);
+  const { setBaselinePower, setTotalEnergy } = useStats();
+
+  useEffect(() => {
+
+    fetch("https://puisne-krish-uncommiseratively.ngrok-free.dev/daily-energy")
+      .then(res => res.json())
+      .then(data => {
+        console.log(data);
+        setDailySeries(data.series);
+        setBaselinePower(data.baseline_power_w);
+        setTotalEnergy(data.total_energy_kwh);
+      });
+  }, []);
+
+  const dailySeries1 = [
+    {x: "12AM", y: 9},
+    {x: "2AM", y: 2},
+    {x: "4AM", y: 3},
+    {x: "6AM", y: 14},
+    {x: "8AM", y: 25},
+    {x: "10AM", y: 35},
+    {x: "12PM", y: 41},
+    {x: "2PM", y: 36},
+    {x: "4PM", y: 37},
+    {x: "6PM", y: 48},
+    {x: "8PM", y: 40},
+    {x: "10PM", y: 29},
+  ]
 
   // 🗓 WEEKLY DATA (7 days)
   const weekSeries1 = [
@@ -108,7 +138,9 @@ export default function StackedAreaChart() {
   };
 
   const { s1, stacked2, stacked3 } =
-    mode === "week"
+    mode === 'daily'
+      ? stackData(dailySeries,dailySeries,dailySeries) :
+      mode === "week"
       ? stackData(weekSeries1, weekSeries2, weekSeries3)
       : mode === "month"
       ? stackData(monthSeries1, monthSeries2, monthSeries3)
@@ -119,6 +151,17 @@ export default function StackedAreaChart() {
       {/* Toggle Header */}
       <View className="p-4 -my-8 z-10">
         <View className="flex flex-row justify-evenly p-2">
+          <Pressable onPress={() => {setMode("daily");console.log("hey")}}>
+            <Text
+              className={`font-medium ${
+                mode === "daily"
+                  ? "text-foreground border-b-2 border-green-500"
+                  : "text-gray-600"
+              }`}
+            >
+              Daily
+            </Text>
+          </Pressable>
           <Pressable onPress={() => {setMode("week");console.log("hey")}}>
             <Text
               className={`font-medium ${
@@ -177,11 +220,12 @@ export default function StackedAreaChart() {
           style={{
             axis: { stroke: "#333" },
             tickLabels: { fill: "#aaa", fontSize: 10 },
-            grid: { stroke: "none" },
+            grid: { stroke: "#1a1a1a" },
           }}
         />
         <VictoryAxis
           dependentAxis
+          tickFormat={(t) => `${t}W`}
           style={{
             axis: { stroke: "#333" },
             tickLabels: { fill: "#666", fontSize: 9 },

@@ -1,5 +1,6 @@
 import '@/global.css';
 import { SmartWattProvider } from '@/lib/context';
+import { StatsProvider } from '@/lib/statsContext';
 
 import { NAV_THEME } from '@/lib/theme';
 import { ThemeProvider } from '@react-navigation/native';
@@ -22,10 +23,12 @@ export default function RootLayout() {
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
           <SmartWattProvider>
+          <StatsProvider>
           <Stack>
             <Stack.Screen name='(tabs)' options={{headerShown: false}}/>
             <Stack.Screen name='history' />
           </Stack>
+          </StatsProvider>
           </SmartWattProvider>
         <PortalHost />
       </ThemeProvider>
