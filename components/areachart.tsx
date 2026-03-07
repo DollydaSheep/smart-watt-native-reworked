@@ -11,21 +11,23 @@ import { Text } from "@/components/ui/text";
 import { useStats } from "@/lib/statsContext";
 
 export default function StackedAreaChart() {
-  const [mode, setMode] = useState<"daily" |"week" | "month" | "year">("month");
+  
   const [dailySeries, setDailySeries] = useState([]);
-  const { setBaselinePower, setTotalEnergy } = useStats();
+  const { setBaselinePower, setTotalEnergy, selectedDate, mode, setMode } = useStats();
 
   useEffect(() => {
 
-    fetch("https://puisne-krish-uncommiseratively.ngrok-free.dev/daily-energy")
+    fetch(`https://puisne-krish-uncommiseratively.ngrok-free.dev/daily-energy?date=${selectedDate}`)
       .then(res => res.json())
       .then(data => {
         console.log(data);
-        setDailySeries(data.series);
-        setBaselinePower(data.baseline_power_w);
-        setTotalEnergy(data.total_energy_kwh);
+        if(data){
+          setDailySeries(data.series);
+          setBaselinePower(data.baseline_power_w);
+          setTotalEnergy(data.total_energy_kwh);
+        }
       });
-  }, []);
+  }, [selectedDate]);
 
   const dailySeries1 = [
     {x: "12AM", y: 9},

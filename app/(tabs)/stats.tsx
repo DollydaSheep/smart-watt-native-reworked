@@ -15,8 +15,11 @@ import Skeletontext from '@/components/skeleton/skeletontext';
 import { useColorScheme } from 'nativewind';
 import { THEME } from '@/lib/theme';
 import CalendarComponent from '@/components/calendarcomponent';
+import { useStats } from '@/lib/statsContext';
 
 export default function StatsTabScreen(){
+
+  const { selectedDate, setSelectedDate } = useStats();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -28,10 +31,11 @@ export default function StatsTabScreen(){
   const [loading, setLoading] = useState(true);
 
   useEffect(()=>{
+    setLoading(true);
     setInterval(()=>{
       setLoading(false);
     },1000)
-  })
+  },[selectedDate])
 
   const blur = useSharedValue(0);
   
@@ -157,9 +161,11 @@ export default function StatsTabScreen(){
           >
             <View className='flex-1 bg-background/70 items-center justify-center'>
               <CalendarComponent  
+                initialDate={confirmedDate}
                 setCalendarModalOpen={(open) => setCalendarModalOpen(open)}
                 onConfirm={(date, iso) => {
                   setConfirmedDate(date);
+                  setSelectedDate(date);
                   console.log("confirmed:", date, iso);
                 }}
               />
