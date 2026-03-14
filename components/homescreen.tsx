@@ -18,6 +18,8 @@ import { DeviceData, NotifData, SensorData } from '@/lib/types';
 import Skeletoncircle from '@/components/skeleton/skeletoncircle';
 import { useSmartWatt } from '@/lib/context';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from '@/lib/supabase';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const NOTIF_CACHE_KEY = "smartwatt_notifications";
 
@@ -41,43 +43,116 @@ export default function HomeScreen() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    let readingsChannel: RealtimeChannel;
 
-    const loadCachedNotif = async () => {
-      const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+    const loadInitialData = async () => {
+      try {
+        const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+        if (cached) {
+          setNotif(JSON.parse(cached));
+        }
 
-      if (cached) {
-        setNotif(JSON.parse(cached));
+        const { data: latestReading, error: readingError } = await supabase
+          .from("energy_readings")
+          .select("*")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (readingError) {
+          console.error("Initial reading fetch error:", readingError);
+        }
+
+        if (latestReading) {
+          setData({
+            totalUsage: latestReading.power ?? 0,
+            voltage: latestReading.voltage ?? 0,
+            current: latestReading.current ?? 0,
+            devices: latestReading.detected_appliances ?? [],
+          });
+        }
+      } catch (err) {
+        console.error("Initial Supabase load error:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadCachedNotif();
+    loadInitialData();
 
-    socketRef.current = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
+    readingsChannel = supabase
+      .channel("energy-readings-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "energy_readings",
+          filter: "id=eq.1",
+        },
+        (payload) => {
+          const row = payload.new as any;
 
-    socketRef.current.on("mqtt-event-trigger", (newNotif: NotifData) => {
-      console.log("Received activity:", newNotif);
-      setNotif(prev => {
-        const updated = [newNotif, ...prev];
-        
-        AsyncStorage.setItem(
-          NOTIF_CACHE_KEY,
-          JSON.stringify(updated)
-        );
+          console.log("Updated energy reading:", row);
 
-        return updated
+          setData({
+            totalUsage: row.power ?? 0,
+            voltage: row.voltage ?? 0,
+            current: row.current ?? 0,
+            devices: row.detected_appliances ?? [],
+          });
+
+          setLoading(false);
+        }
+      )
+      .subscribe((status) => {
+        console.log("energy_readings channel status:", status);
       });
-    });
-
-    socketRef.current.on("mqtt-device-data", (msg: DeviceData) => {
-      console.log("Received mock data:", msg);
-      setData(msg);
-      setLoading(false);
-    });
 
     return () => {
-      socketRef.current?.disconnect();
+      if (readingsChannel) {
+        supabase.removeChannel(readingsChannel);
+      }
     };
-  }, []);
+  }, [renderKey]);
+
+  // useEffect(() => {
+
+  //   const loadCachedNotif = async () => {
+  //     const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+
+  //     if (cached) {
+  //       setNotif(JSON.parse(cached));
+  //     }
+  //   };
+
+  //   loadCachedNotif();
+
+  //   socketRef.current = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
+
+  //   socketRef.current.on("mqtt-event-trigger", (newNotif: NotifData) => {
+  //     console.log("Received activity:", newNotif);
+  //     setNotif(prev => {
+  //       const updated = [newNotif, ...prev];
+        
+  //       AsyncStorage.setItem(
+  //         NOTIF_CACHE_KEY,
+  //         JSON.stringify(updated)
+  //       );
+
+  //       return updated
+  //     });
+  //   });
+
+  //   socketRef.current.on("mqtt-device-data", (msg: DeviceData) => {
+  //     console.log("Received mock data:", msg);
+  //     setData(msg);
+  //     setLoading(false);
+  //   });
+
+  //   return () => {
+  //     socketRef.current?.disconnect();
+  //   };
+  // }, []);
 
   const blur = useSharedValue(0);
 

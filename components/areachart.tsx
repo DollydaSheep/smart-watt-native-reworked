@@ -12,22 +12,69 @@ import { useStats } from "@/lib/statsContext";
 
 export default function StackedAreaChart() {
   
-  const [dailySeries, setDailySeries] = useState([]);
+  const [chartSeries, setChartSeries] = useState([]);
   const { setBaselinePower, setTotalEnergy, selectedDate, mode, setMode } = useStats();
+
+  function getWeekRange(dateString: string) {
+
+    const date = new Date(dateString);
+    const day = date.getDay(); // 0 = Sunday
+
+    const start = new Date(date);
+    start.setDate(date.getDate() - day);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    const format = (d: Date) => d.toISOString().split("T")[0];
+
+    return {
+      start: format(start),
+      end: format(end)
+    };
+  }
 
   useEffect(() => {
 
-    fetch(`https://puisne-krish-uncommiseratively.ngrok-free.dev/daily-energy?date=${selectedDate}`)
+    if (!selectedDate) return;
+
+    let url = "";
+
+    if (mode === "daily") {
+      url = `https://puisne-krish-uncommiseratively.ngrok-free.dev/daily-energy?date=${selectedDate}`;
+    }
+
+    if (mode === "week") {
+      const { start, end } = getWeekRange(selectedDate);
+
+      url = `https://puisne-krish-uncommiseratively.ngrok-free.dev/week-energy?start=${start}&end=${end}`;
+    }
+
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         console.log(data);
-        if(data){
-          setDailySeries(data.series);
-          setBaselinePower(data.baseline_power_w);
-          setTotalEnergy(data.total_energy_kwh);
+
+        if (!data || !data.series) {
+          setChartSeries([]);
+          setBaselinePower(0);
+          setTotalEnergy(0);
+          return;
         }
+
+        setChartSeries(data.series);
+        setBaselinePower(data.baseline_power_w);
+        setTotalEnergy(data.total_energy_kwh);
+      })
+      .catch(err => {
+        console.error("Energy fetch error:", err);
+
+        setChartSeries([]);
+        setBaselinePower(0);
+        setTotalEnergy(0);
       });
-  }, [selectedDate]);
+
+  }, [selectedDate, mode]);
 
   const dailySeries1 = [
     {x: "12AM", y: 9},
@@ -141,9 +188,9 @@ export default function StackedAreaChart() {
 
   const { s1, stacked2, stacked3 } =
     mode === 'daily'
-      ? stackData(dailySeries,dailySeries,dailySeries) :
+      ? stackData(chartSeries,chartSeries,chartSeries) :
       mode === "week"
-      ? stackData(weekSeries1, weekSeries2, weekSeries3)
+      ? stackData(chartSeries, chartSeries, chartSeries)
       : mode === "month"
       ? stackData(monthSeries1, monthSeries2, monthSeries3)
       : stackData(yearSeries1, yearSeries2, yearSeries3);
