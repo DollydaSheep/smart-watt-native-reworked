@@ -6,8 +6,11 @@ export type SensorData = {
 };
 
 export type NotifData = {
-  time: string;
+  id: string;
   message: string;
+  time: string;
+  type?: 'on' | 'off';
+  appliance_label?: string;
 }
 
 export type Device = {

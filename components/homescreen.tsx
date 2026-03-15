@@ -43,77 +43,141 @@ export default function HomeScreen() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    let readingsChannel: RealtimeChannel;
+  let readingsChannel: RealtimeChannel;
+  let eventsChannel: RealtimeChannel;
 
-    const loadInitialData = async () => {
-      try {
-        const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
-        if (cached) {
-          setNotif(JSON.parse(cached));
-        }
+  const appendNotification = async (newNotif: NotifData) => {
+    setNotif((prev) => {
+      const exists = prev.some((item) => item.id === newNotif.id);
+      if (exists) return prev;
 
-        const { data: latestReading, error: readingError } = await supabase
-          .from("energy_readings")
-          .select("*")
-          .eq("id", 1)
-          .maybeSingle();
+      const updated = [newNotif, ...prev];
+      // AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
 
-        if (readingError) {
-          console.error("Initial reading fetch error:", readingError);
-        }
+  const loadInitialData = async () => {
+    try {
+      // const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+      // if (cached) {
+      //   setNotif(JSON.parse(cached));
+      // }
 
-        if (latestReading) {
-          setData({
-            totalUsage: latestReading.power ?? 0,
-            voltage: latestReading.voltage ?? 0,
-            current: latestReading.current ?? 0,
-            devices: latestReading.detected_appliances ?? [],
-          });
-        }
-      } catch (err) {
-        console.error("Initial Supabase load error:", err);
-      } finally {
+      const { data: latestReading, error: readingError } = await supabase
+        .from("energy_readings")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (readingError) {
+        console.error("Initial reading fetch error:", readingError);
+      }
+
+      if (latestReading) {
+        setData({
+          totalUsage: latestReading.power ?? 0,
+          voltage: latestReading.voltage ?? 0,
+          current: latestReading.current ?? 0,
+          devices: latestReading.detected_appliances ?? [],
+        });
+      }
+    } catch (err) {
+      console.error("Initial Supabase load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadInitialData();
+
+  readingsChannel = supabase
+    .channel("energy-readings-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "energy_readings",
+        filter: "id=eq.1",
+      },
+      (payload) => {
+        const row = payload.new as any;
+
+        console.log("Updated energy reading:", row);
+
+        setData({
+          totalUsage: row.power ?? 0,
+          voltage: row.voltage ?? 0,
+          current: row.current ?? 0,
+          devices: row.detected_appliances ?? [],
+        });
+
         setLoading(false);
       }
-    };
+    )
+    .subscribe((status) => {
+      console.log("energy_readings channel status:", status);
+    });
 
-    loadInitialData();
+  eventsChannel = supabase
+    .channel("appliance-events-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "appliance_events",
+      },
+      async (payload) => {
+        const row = payload.new as any;
 
-    readingsChannel = supabase
-      .channel("energy-readings-live")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "energy_readings",
-          filter: "id=eq.1",
-        },
-        (payload) => {
-          const row = payload.new as any;
+        console.log("Inserted appliance event:", row);
 
-          console.log("Updated energy reading:", row);
-
-          setData({
-            totalUsage: row.power ?? 0,
-            voltage: row.voltage ?? 0,
-            current: row.current ?? 0,
-            devices: row.detected_appliances ?? [],
+        if (row.status === "open") {
+          await appendNotification({
+            id: `on-${row.id}`,
+            message: `${row.appliance_label} turned on`,
+            time: row.started_at ?? new Date().toISOString(),
+            type: "on",
+            appliance_label: row.appliance_label,
           });
-
-          setLoading(false);
         }
-      )
-      .subscribe((status) => {
-        console.log("energy_readings channel status:", status);
-      });
-
-    return () => {
-      if (readingsChannel) {
-        supabase.removeChannel(readingsChannel);
       }
-    };
-  }, [renderKey]);
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "appliance_events",
+      },
+      async (payload) => {
+        const oldRow = payload.old as any;
+        const newRow = payload.new as any;
+
+        console.log("Updated appliance event:", newRow);
+
+        if (oldRow.status !== "closed" && newRow.status === "closed") {
+          await appendNotification({
+            id: `off-${newRow.id}`,
+            message: `${newRow.appliance_label} turned off`,
+            time: newRow.ended_at ?? new Date().toISOString(),
+            type: "off",
+            appliance_label: newRow.appliance_label,
+          });
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log("appliance_events channel status:", status);
+    });
+
+  return () => {
+    if (readingsChannel) supabase.removeChannel(readingsChannel);
+    if (eventsChannel) supabase.removeChannel(eventsChannel);
+  };
+}, [renderKey]);
 
   // useEffect(() => {
 
@@ -320,48 +384,49 @@ export default function HomeScreen() {
                 nestedScrollEnabled={true}
                 className="px-4 pt-2 mb-6"
               >
-                  <View className='flex flex-col gap-2'>
-                    
-                    {notif && (
-                      notif.map((n,index) => (
-                        <View key={index} className='flex flex-row p-4 gap-2'>
-                          <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                            <Microwave color={'#fff'} size={36}/>
+                  <View className="flex flex-col gap-2">
+                    {notif.length === 0 ? (
+                      <View className="p-4">
+                        <Text className="text-sm text-gray-500">No recent notifications</Text>
+                      </View>
+                    ) : (
+                      notif.map((n, index) => (
+                        <View key={n.id ?? index} className="flex flex-row p-4 gap-2">
+                          <View className="px-3 py-2 bg-gray-800 rounded-lg">
+                            <Microwave color={"#fff"} size={36} />
                           </View>
-                          <View>
-                            <Text className='text-xs text-gray-600'>
+
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-600">
                               {(() => {
                                 const date = new Date(n.time);
                                 const now = new Date();
-                                const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+                                const diffHours =
+                                  (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
                                 if (diffHours >= 24) {
-                                  // ✅ show date + time if older than 24 hours
                                   return date.toLocaleDateString([], {
                                     month: "short",
                                     day: "numeric",
                                     hour: "2-digit",
                                     minute: "2-digit",
-                                    hour12: true
-                                  }); // "Mar 3, 08:58 PM"
+                                    hour12: true,
+                                  });
                                 } else {
-                                  // ✅ show time only if within 24 hours
                                   return date.toLocaleTimeString([], {
                                     hour: "2-digit",
                                     minute: "2-digit",
-                                    hour12: true
-                                  }); // "08:58 PM"
+                                    hour12: true,
+                                  });
                                 }
                               })()}
                             </Text>
-                            <Text className='font-medium'>{n.message}</Text>
+
+                            <Text className="font-medium capitalize">{n.message}</Text>
                           </View>
                         </View>
                       ))
                     )}
-        
-
-                    
                   </View>
               </BottomSheetScrollView>
             </View>
