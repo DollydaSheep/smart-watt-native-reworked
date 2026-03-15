@@ -1,11 +1,13 @@
 import { Dimensions, View } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSharedValue } from "react-native-reanimated";
 import Carousel, { ICarouselInstance, Pagination } from "react-native-reanimated-carousel";
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from "nativewind";
 import { THEME } from "@/lib/theme";
+import { useIsFocused } from "@react-navigation/native";
 import EnergySphere3D from "./sphere3D";
+import Skeletoncircle from "./skeleton/skeletoncircle";
 import { device } from "@/data/deviceData";
 import { Device, DeviceData } from '@/lib/types';
 
@@ -15,6 +17,18 @@ const width = Dimensions.get("window").width;
 export default function HeroCarouselComponent( { devices, totalUsage } : DeviceData){
 
   const { colorScheme } = useColorScheme();
+  const isFocused = useIsFocused();
+  const [showSphere, setShowSphere] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setShowSphere(false);
+      return;
+    }
+
+    const t = setTimeout(() => setShowSphere(true), 50);
+    return () => clearTimeout(t);
+  }, [isFocused]);
 
   const ref = React.useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);
@@ -39,10 +53,10 @@ export default function HeroCarouselComponent( { devices, totalUsage } : DeviceD
           backgroundColor: colorScheme === 'dark' ? THEME.dark.border : THEME.light.border, 
           borderRadius: 20 }}
         activeDotStyle={{
-					borderRadius: 20,
-					overflow: "hidden",
-					backgroundColor: colorScheme === 'dark' ? THEME.dark.foreground : THEME.light.foreground,
-				}}
+          borderRadius: 20,
+          overflow: "hidden",
+          backgroundColor: colorScheme === 'dark' ? THEME.dark.foreground : THEME.light.foreground,
+        }}
         containerStyle={{ gap: 5, marginTop: 10, alignSelf: "flex-end", marginRight: 40 }}
         onPress={onPressPagination}
       />
@@ -59,7 +73,13 @@ export default function HeroCarouselComponent( { devices, totalUsage } : DeviceD
         renderItem={({index}) => 
           index === 0 ? (
             <View className="self-center">
-              <EnergySphere3D devices={devices} totalUsage={totalUsage} />
+              {showSphere ? (
+                <EnergySphere3D devices={devices} totalUsage={totalUsage} />
+              ) : (
+                <View style={{ width: 325, height: 325, alignItems: 'center', justifyContent: 'center' }}>
+                  <Skeletoncircle size={280} />
+                </View>
+              )}
             </View>
           ) : index === 1 ? (<View className={`border-8 border-green-500 p-32 rounded-full self-center`}></View>): (<></>)}
       />

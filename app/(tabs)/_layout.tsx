@@ -6,18 +6,21 @@ import { ChartNoAxesColumnIncreasing, House, Menu, MenuIcon, Monitor } from "luc
 import { useColorScheme } from "nativewind";
 import { Animated, Easing, Image, Pressable, View } from "react-native";
 import { Text } from '@/components/ui/text';
-import Svg, { G, Rect } from "react-native-svg";
-import { useEffect, useRef, useState,  } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { useSmartWatt } from "@/lib/context";
 import { useAuth } from "@/hooks/useUserRole";
 import { usePathname } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout(){
   const { colorScheme } = useColorScheme();
-  const { anomalyLevel, setAnomalyLevel } = useSmartWatt();
+  const { anomalyLevel } = useSmartWatt();
   const { user } = useAuth();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+
+  const TAB_BAR_HEIGHT = 64;
 
   const [chatbotOpen, setChatbotOpen] = useState(false);
 
@@ -42,6 +45,24 @@ export default function TabsLayout(){
     }
   }, [pathname]);
 
+  const chatbotButtonLogoSource = anomalyLevel === 'critical'
+    ? require('assets/images/smartwattlogo-red-btn.png')
+    : anomalyLevel === 'warning'
+      ? require('assets/images/smartwattlogo-yellow-btn.png')
+      : require('assets/images/smartwattlogo-green-btn.png');
+
+  const chatbotButtonBaseSource = anomalyLevel === 'critical'
+    ? require('assets/images/smartwattred.png')
+    : anomalyLevel === 'warning'
+      ? require('assets/images/smartwattyellow.png')
+      : require('assets/images/smartwattgreen.png');
+
+  const chatbotButtonGlassSource = anomalyLevel === 'critical'
+    ? require('assets/images/smartwattglassred.png')
+    : anomalyLevel === 'warning'
+      ? require('assets/images/smartwattglassyellow.png')
+      : require('assets/images/smartwatt.png');
+
   if(user === null){
     return(
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
@@ -65,190 +86,14 @@ export default function TabsLayout(){
       }}
         style={{
         position: 'absolute',
-        bottom: 65,
+        bottom: (TAB_BAR_HEIGHT + (insets.bottom ?? 0)) - 6,
         alignSelf: 'center',
         zIndex: 999,
         elevation: 10,
       }}
       >
         <View className="px-3.5 py-3 rounded-full self-center" >
-          {/* {anomalyLevel === "normal" && (
-            <>
-              {chatbotOpen ? (
-                <Animated.View
-                  style={{
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flex: 1,
-                    opacity: anim.interpolate({
-                      inputRange: [-40, 0 , 40],
-                      outputRange: [0, 1, 0],
-                    }),
-                    transform: [{ scale: anim }],
-                  }}
-                >
-                  <Image 
-                    source={require('assets/images/smartwattlogo-green-btn.png')}
-                    className="absolute self-center"
-                    style={{
-                      height: 80,
-                      width: 80,
-                      resizeMode: 'contain',
-                    }}
-                  />
-                </Animated.View>
-              ) : (
-                <Animated.View
-                  style={{
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flex: 1,
-                    opacity: anim.interpolate({
-                      inputRange: [-40, 0 , 40],
-                      outputRange: [0, 1, 0],
-                    }),
-                    transform: [{ scale: anim }],
-                  }}
-                >
-                  <Image 
-                    source={require('assets/images/smartwattgreen.png')}
-                    className="absolute self-center"
-                    style={{
-                      height: 80,
-                      width: 80,
-                    }}
-                  />
-                  <Image 
-                    source={require('assets/images/smartwatt.png')}
-                    className="absolute self-center animate-pulse transition duration-1000"
-                    style={{
-                      height: 80,
-                      width: 80,
-                    }}
-                  />
-                </Animated.View>
-              )}
-            </>
-          )} */}
-          {/* {anomalyLevel === 'warning' && (
-            <>
-              {chatbotOpen ? (
-                <Animated.View
-                  style={{
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flex: 1,
-                    opacity: anim.interpolate({
-                      inputRange: [-40, 0 , 40],
-                      outputRange: [0, 1, 0],
-                    }),
-                    transform: [{ scale: anim }],
-                  }}
-                >
-                  <Image 
-                    source={require('assets/images/smartwattlogo-yellow-btn.png')}
-                    className="absolute self-center"
-                    style={{
-                      height: 80,
-                      width: 80,
-                      resizeMode: 'contain',
-                    }}
-                  />
-                </Animated.View>
-              ) : (
-                <Animated.View
-                  style={{
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flex: 1,
-                    opacity: anim.interpolate({
-                      inputRange: [-40, 0 , 40],
-                      outputRange: [0, 1, 0],
-                    }),
-                    transform: [{ scale: anim }],
-                  }}
-                >
-                  <Image 
-                    source={require('assets/images/smartwattyellow.png')}
-                    className="absolute self-center transition duration-300"
-                    style={{
-                      height: 80,
-                      width: 80,
-                    }}
-                  />
-                  <Image 
-                    source={require('assets/images/smartwattglassyellow.png')}
-                    className="absolute self-center animate-pulse transition duration-1000"
-                    style={{
-                      height: 80,
-                      width: 80,
-                    }}
-                  />
-                </Animated.View>
-              )}
-            </>
-          )} */}
-
-          {anomalyLevel === 'normal' && (
-            <>
-              {chatbotOpen ? (
-                <Animated.View
-                  style={{
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flex: 1,
-                    opacity: anim.interpolate({
-                      inputRange: [-40, 0 , 40],
-                      outputRange: [0, 1, 0],
-                    }),
-                    transform: [{ scale: anim }],
-                  }}
-                >
-                  <Image 
-                    source={require('assets/images/smartwattlogo-red-btn.png')}
-                    className="absolute self-center"
-                    style={{
-                      height: 80,
-                      width: 80,
-                      resizeMode: 'contain',
-                    }}
-                  />
-                </Animated.View>
-              ) : (
-                <Animated.View
-                  style={{
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flex: 1,
-                    opacity: anim.interpolate({
-                      inputRange: [-40, 0 , 40],
-                      outputRange: [0, 1, 0],
-                    }),
-                    transform: [{ scale: anim }],
-                  }}
-                >
-                  <Image 
-                    source={require('assets/images/smartwattred.png')}
-                    className="absolute self-center transition duration-300"
-                    style={{
-                      height: 80,
-                      width: 80,
-                    }}
-                  />
-                  <Image 
-                    source={require('assets/images/smartwattglassred.png')}
-                    className="absolute self-center animate-pulse transition duration-1000"
-                    style={{
-                      height: 80,
-                      width: 80,
-                    }}
-                  />
-                </Animated.View>
-              )}
-            </>
-          )}
-
-          {!chatbotOpen && (
+          {chatbotOpen ? (
             <Animated.View
               style={{
                 alignItems: 'center',
@@ -262,6 +107,45 @@ export default function TabsLayout(){
               }}
             >
               <Image 
+                source={chatbotButtonLogoSource}
+                className="absolute self-center"
+                style={{
+                  height: 80,
+                  width: 80,
+                  resizeMode: 'contain',
+                }}
+              />
+            </Animated.View>
+          ) : (
+            <Animated.View
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1,
+                opacity: anim.interpolate({
+                  inputRange: [-40, 0 , 40],
+                  outputRange: [0, 1, 0],
+                }),
+                transform: [{ scale: anim }],
+              }}
+            >
+              <Image 
+                source={chatbotButtonBaseSource}
+                className="absolute self-center transition duration-300"
+                style={{
+                  height: 80,
+                  width: 80,
+                }}
+              />
+              <Image 
+                source={chatbotButtonGlassSource}
+                className="absolute self-center animate-pulse transition duration-1000"
+                style={{
+                  height: 80,
+                  width: 80,
+                }}
+              />
+              <Image 
                 source={require('assets/images/smartwattlogo.png')}
                 className="absolute self-center"
                 style={{
@@ -271,11 +155,16 @@ export default function TabsLayout(){
               />
             </Animated.View>
           )}
-      
         </View>
       </Pressable>
       <Tabs screenOptions={{
-        tabBarActiveTintColor: colorScheme === 'dark' ? THEME.dark.foreground : THEME.light.foreground
+        lazy: true,
+        freezeOnBlur: true,
+        tabBarActiveTintColor: colorScheme === 'dark' ? THEME.dark.foreground : THEME.light.foreground,
+        tabBarStyle: {
+          height: TAB_BAR_HEIGHT + (insets.bottom ?? 0),
+          paddingBottom: insets.bottom ?? 0,
+        },
       }}>
         <Tabs.Screen 
           name="index"

@@ -3,7 +3,7 @@ import { useSmartWatt } from '@/lib/context';
 import { THEME } from '@/lib/theme';
 import { DeviceData } from '@/lib/types';
 import { Bell, ChevronDown, ChevronUp, CircleQuestionMark, HandHeart, Key, KeyRound, Monitor, Palette, Zap } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View, Image, TextInput, Dimensions, Pressable } from 'react-native';
 import { io } from "socket.io-client";
 import Animated, {
@@ -30,7 +30,7 @@ export default function MenuTabScreen(){
 
   const isOpen = useSharedValue(false);
 
-  const socket = io("https://puisne-krish-uncommiseratively.ngrok-free.dev");
+  const socket = useMemo(() => io("https://puisne-krish-uncommiseratively.ngrok-free.dev"), []);
 
   useEffect(() => {
 
@@ -43,11 +43,20 @@ export default function MenuTabScreen(){
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [socket]);
 
   useEffect(()=>{
     setStorePower(powerLimit.toString());
-  },[])
+  },[powerLimit])
+
+  const commitPowerLimit = () => {
+    const parsed = parseFloat(storePower);
+    if (!isNaN(parsed) && parsed > 0) {
+      setPowerLimit(parsed);
+    } else {
+      setStorePower(powerLimit.toString());
+    }
+  };
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -104,7 +113,7 @@ export default function MenuTabScreen(){
               </View>
               <View className='flex-1 py-2 px-4 bg-foreground/10 rounded-lg flex-row items-center justify-between'>
                 <View className=''>
-                  <Text className='text-2xl font-semibold'>15.0 kW</Text>
+                  <Text className='text-2xl font-semibold'>{powerLimit.toFixed(1)} kW</Text>
                   <Text className='text-xs text-foreground/40'>Power Limit</Text>
                 </View>
                 <Animated.View style={iconStyle}>
@@ -139,19 +148,24 @@ export default function MenuTabScreen(){
                     </View>
                   </View>
                   <Text className='font-medium text-sm my-2'>Power Limit (kW)</Text>
-                  <TextInput 
-                    className='px-3 py-1 flex-1 text-foreground bg-foreground/20 rounded-md'
-                    value={storePower}
-                    onChangeText={(text) => {
-                      setStorePower(text);
-                      const parsed = parseFloat(text);
-                      if (!isNaN(parsed)) {
-                        setPowerLimit(parsed);
-                        console.log("Power limit updated:", parsed);
-                      }
-                    }}
-                    keyboardType="numeric"
-                  />
+                  <View className='flex flex-row items-center gap-2'>
+                    <TextInput 
+                      className='px-4 py-4 flex-1 text-lg text-foreground bg-foreground/20 rounded-md'
+                      style={{ minHeight: 45 }}
+                      value={storePower}
+                      onChangeText={(text) => {
+                        setStorePower(text);
+                      }}
+                      onSubmitEditing={commitPowerLimit}
+                      onEndEditing={commitPowerLimit}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                      blurOnSubmit={true}
+                    />
+                    <Pressable onPress={commitPowerLimit} className='px-4 py-3 rounded-md bg-green-600'>
+                      <Text className='text-xs font-medium text-white'>Apply</Text>
+                    </Pressable>
+                  </View>
                 </View>
                 <View className='border-t border-foreground/20 my-2'></View>
                 <View className='p-4 pt-2'>
