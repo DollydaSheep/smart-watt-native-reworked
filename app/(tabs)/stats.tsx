@@ -49,9 +49,6 @@ export default function StatsTabScreen(){
 
   const min = snapPoints[0];      // collapsed
   const max = snapPoints[1];  // fully open
-
-  console.log(min)
-  console.log(max)
   
   const animatedPosition = useSharedValue(0);
 
@@ -73,7 +70,6 @@ export default function StatsTabScreen(){
   useAnimatedReaction(
     () => animatedPosition.value,
     (pos) => {
-      console.log(animatedPosition.value)
       blur.value = interpolate(
         pos,
         [min, max],   // bottom → fully open (adjust to your screen height)
