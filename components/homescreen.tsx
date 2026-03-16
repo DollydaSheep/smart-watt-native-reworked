@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 const NOTIF_CACHE_KEY = "smartwatt_notifications";
+const LAST_NOTIF_SYNC_KEY = "smartwatt_last_notif_sync";
 
 export default function HomeScreen() {
 
@@ -43,141 +44,254 @@ export default function HomeScreen() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-  let readingsChannel: RealtimeChannel;
-  let eventsChannel: RealtimeChannel;
+    let readingsChannel: RealtimeChannel;
+    let eventsChannel: RealtimeChannel;
+    let isMounted = true;
 
-  const appendNotification = async (newNotif: NotifData) => {
-    setNotif((prev) => {
-      const exists = prev.some((item) => item.id === newNotif.id);
-      if (exists) return prev;
+    const appendNotification = async (newNotif: NotifData) => {
+      setNotif((prev) => {
+        const exists = prev.some((item) => item.id === newNotif.id);
+        if (exists) return prev;
 
-      const updated = [newNotif, ...prev];
-      // AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  };
+        const updated = [newNotif, ...prev];
+        AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    };
 
-  const loadInitialData = async () => {
-    try {
-      // const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
-      // if (cached) {
-      //   setNotif(JSON.parse(cached));
-      // }
+    const appendNotificationsBulk = async (newNotifs: NotifData[]) => {
+      if (newNotifs.length === 0) return;
 
-      const { data: latestReading, error: readingError } = await supabase
-        .from("energy_readings")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
+      setNotif((prev) => {
+        const existingIds = new Set(prev.map((item) => item.id));
+        const deduped = newNotifs.filter((item) => !existingIds.has(item.id));
 
-      if (readingError) {
-        console.error("Initial reading fetch error:", readingError);
-      }
+        if (deduped.length === 0) return prev;
 
-      if (latestReading) {
-        setData({
-          totalUsage: latestReading.power ?? 0,
-          voltage: latestReading.voltage ?? 0,
-          current: latestReading.current ?? 0,
-          devices: latestReading.detected_appliances ?? [],
-        });
-      }
-    } catch (err) {
-      console.error("Initial Supabase load error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const updated = [...deduped, ...prev].sort(
+          (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+        );
 
-  loadInitialData();
+        AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    };
 
-  readingsChannel = supabase
-    .channel("energy-readings-live")
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "energy_readings",
-        filter: "id=eq.1",
-      },
-      (payload) => {
-        const row = payload.new as any;
+    const updateLastSync = async (isoTime?: string) => {
+      const value = isoTime ?? new Date().toISOString();
+      await AsyncStorage.setItem(LAST_NOTIF_SYNC_KEY, value);
+    };
 
-        console.log("Updated energy reading:", row);
+    const loadInitialData = async () => {
+      try {
+        const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
+        if (cached && isMounted) {
+          setNotif(JSON.parse(cached));
+        }
 
-        setData({
-          totalUsage: row.power ?? 0,
-          voltage: row.voltage ?? 0,
-          current: row.current ?? 0,
-          devices: row.detected_appliances ?? [],
-        });
+        const { data: latestReading, error: readingError } = await supabase
+          .from("energy_readings")
+          .select("*")
+          .eq("id", 1)
+          .maybeSingle();
 
-        setLoading(false);
-      }
-    )
-    .subscribe((status) => {
-      console.log("energy_readings channel status:", status);
-    });
+        if (readingError) {
+          console.error("Initial reading fetch error:", readingError);
+        }
 
-  eventsChannel = supabase
-    .channel("appliance-events-live")
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "appliance_events",
-      },
-      async (payload) => {
-        const row = payload.new as any;
-
-        console.log("Inserted appliance event:", row);
-
-        if (row.status === "open") {
-          await appendNotification({
-            id: `on-${row.id}`,
-            message: `${row.appliance_label} turned on`,
-            time: row.started_at ?? new Date().toISOString(),
-            type: "on",
-            appliance_label: row.appliance_label,
+        if (latestReading && isMounted) {
+          setData({
+            totalUsage: latestReading.power ?? 0,
+            voltage: latestReading.voltage ?? 0,
+            current: latestReading.current ?? 0,
+            devices: latestReading.detected_appliances ?? [],
           });
         }
+      } catch (err) {
+        console.error("Initial Supabase load error:", err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "appliance_events",
-      },
-      async (payload) => {
-        const oldRow = payload.old as any;
-        const newRow = payload.new as any;
+    };
 
-        console.log("Updated appliance event:", newRow);
+    const backfillMissedApplianceEvents = async () => {
+      try {
+        const lastSync = await AsyncStorage.getItem(LAST_NOTIF_SYNC_KEY);
 
-        if (oldRow.status !== "closed" && newRow.status === "closed") {
-          await appendNotification({
-            id: `off-${newRow.id}`,
-            message: `${newRow.appliance_label} turned off`,
-            time: newRow.ended_at ?? new Date().toISOString(),
-            type: "off",
-            appliance_label: newRow.appliance_label,
-          });
+        let query = supabase
+          .from("appliance_events")
+          .select("*")
+          .order("started_at", { ascending: false });
+
+        if (lastSync) {
+          // rows created after last sync
+          query = query.or(
+            `started_at.gt.${lastSync},ended_at.gt.${lastSync}`
+          );
+        } else {
+          // first app open: just get recent rows
+          const fallback = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          query = query.or(
+            `started_at.gt.${fallback},ended_at.gt.${fallback}`
+          );
         }
-      }
-    )
-    .subscribe((status) => {
-      console.log("appliance_events channel status:", status);
-    });
 
-  return () => {
-    if (readingsChannel) supabase.removeChannel(readingsChannel);
-    if (eventsChannel) supabase.removeChannel(eventsChannel);
-  };
-}, [renderKey]);
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Backfill appliance_events error:", error);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          await updateLastSync();
+          return;
+        }
+
+        const recovered: NotifData[] = [];
+
+        for (const row of data) {
+          // ON notification for rows that started after last sync
+          if (row.started_at) {
+            recovered.push({
+              id: `on-${row.id}`,
+              message: `${row.appliance_label} turned on`,
+              time: row.started_at,
+              type: "on",
+              appliance_label: row.appliance_label,
+            });
+          }
+
+          // OFF notification only if already closed
+          if (row.status === "closed" && row.ended_at) {
+            recovered.push({
+              id: `off-${row.id}`,
+              message: `${row.appliance_label} turned off`,
+              time: row.ended_at,
+              type: "off",
+              appliance_label: row.appliance_label,
+            });
+          }
+        }
+
+        await appendNotificationsBulk(recovered);
+
+        const newestTime = data.reduce((latest, row) => {
+          const candidate = row.ended_at ?? row.started_at ?? latest;
+          return new Date(candidate).getTime() > new Date(latest).getTime()
+            ? candidate
+            : latest;
+        }, data[0].ended_at ?? data[0].started_at ?? new Date().toISOString());
+
+        await updateLastSync(newestTime);
+      } catch (err) {
+        console.error("Backfill error:", err);
+      }
+    };
+
+    const init = async () => {
+      await loadInitialData();
+      await backfillMissedApplianceEvents();
+
+      readingsChannel = supabase
+        .channel("energy-readings-live")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "energy_readings",
+            filter: "id=eq.1",
+          },
+          (payload) => {
+            const row = payload.new as any;
+
+            console.log("Updated energy reading:", row);
+
+            if (!isMounted) return;
+
+            setData({
+              totalUsage: row.power ?? 0,
+              voltage: row.voltage ?? 0,
+              current: row.current ?? 0,
+              devices: row.detected_appliances ?? [],
+            });
+
+            setLoading(false);
+          }
+        )
+        .subscribe((status) => {
+          console.log("energy_readings channel status:", status);
+        });
+
+      eventsChannel = supabase
+        .channel("appliance-events-live")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "appliance_events",
+          },
+          async (payload) => {
+            const row = payload.new as any;
+
+            console.log("Inserted appliance event:", row);
+
+            if (row.status === "open") {
+              await appendNotification({
+                id: `on-${row.id}`,
+                message: `${row.appliance_label} turned on`,
+                time: row.started_at ?? new Date().toISOString(),
+                type: "on",
+                appliance_label: row.appliance_label,
+              });
+            }
+
+            await updateLastSync(row.started_at ?? new Date().toISOString());
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "appliance_events",
+          },
+          async (payload) => {
+            const oldRow = payload.old as any;
+            const newRow = payload.new as any;
+
+            console.log("Updated appliance event:", newRow);
+
+            if (oldRow.status !== "closed" && newRow.status === "closed") {
+              await appendNotification({
+                id: `off-${newRow.id}`,
+                message: `${newRow.appliance_label} turned off`,
+                time: newRow.ended_at ?? new Date().toISOString(),
+                type: "off",
+                appliance_label: newRow.appliance_label,
+              });
+            }
+
+            await updateLastSync(
+              newRow.ended_at ?? newRow.started_at ?? new Date().toISOString()
+            );
+          }
+        )
+        .subscribe((status) => {
+          console.log("appliance_events channel status:", status);
+        });
+    };
+
+    init();
+
+    return () => {
+      isMounted = false;
+      if (readingsChannel) supabase.removeChannel(readingsChannel);
+      if (eventsChannel) supabase.removeChannel(eventsChannel);
+    };
+  }, [renderKey]);
 
   // useEffect(() => {
 
