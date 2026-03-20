@@ -44,6 +44,8 @@ export default function HomeScreen() {
   
   const socketRef = useRef<Socket | null>(null);
 
+  const MAX_NOTIFICATIONS = 20;
+
   useEffect(() => {
     let readingsChannel: RealtimeChannel;
     let eventsChannel: RealtimeChannel;
@@ -51,10 +53,21 @@ export default function HomeScreen() {
 
     const appendNotification = async (newNotif: NotifData) => {
       setNotif((prev) => {
-        const exists = prev.some((item) => item.id === newNotif.id);
-        if (exists) return prev;
+        const index = prev.findIndex((item) => item.id === newNotif.id);
 
-        const updated = [newNotif, ...prev];
+        let updated: NotifData[];
+
+        if (index >= 0) {
+          updated = [...prev];
+          updated[index] = { ...updated[index], ...newNotif };
+        } else {
+          updated = [newNotif, ...prev];
+        }
+
+        updated = updated
+          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+          .slice(0, MAX_NOTIFICATIONS);
+
         AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(updated));
         return updated;
       });
@@ -64,14 +77,16 @@ export default function HomeScreen() {
       if (newNotifs.length === 0) return;
 
       setNotif((prev) => {
-        const existingIds = new Set(prev.map((item) => item.id));
-        const deduped = newNotifs.filter((item) => !existingIds.has(item.id));
+        const map = new Map(prev.map((item) => [item.id, item]));
 
-        if (deduped.length === 0) return prev;
+        for (const item of newNotifs) {
+          const existing = map.get(item.id);
+          map.set(item.id, { ...existing, ...item });
+        }
 
-        const updated = [...deduped, ...prev].sort(
-          (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
-        );
+        const updated = Array.from(map.values())
+          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+          .slice(0, MAX_NOTIFICATIONS);
 
         AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(updated));
         return updated;
@@ -87,7 +102,9 @@ export default function HomeScreen() {
       try {
         const cached = await AsyncStorage.getItem(NOTIF_CACHE_KEY);
         if (cached && isMounted) {
-          setNotif(JSON.parse(cached));
+          const parsed = JSON.parse(cached).slice(0, MAX_NOTIFICATIONS);
+          setNotif(parsed);
+          await AsyncStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(parsed));
         }
 
         const { data: latestReading, error: readingError } = await supabase
@@ -122,7 +139,8 @@ export default function HomeScreen() {
         let query = supabase
           .from("appliance_events")
           .select("*")
-          .order("started_at", { ascending: false });
+          .order("started_at", { ascending: false })
+          .limit(10);
 
         if (lastSync) {
           // rows created after last sync
@@ -152,7 +170,6 @@ export default function HomeScreen() {
         const recovered: NotifData[] = [];
 
         for (const row of data) {
-          // ON notification for rows that started after last sync
           if (row.started_at) {
             recovered.push({
               id: `on-${row.id}`,
@@ -160,10 +177,11 @@ export default function HomeScreen() {
               time: row.started_at,
               type: "on",
               appliance_label: row.appliance_label,
+              delta_w: row.raw_delta_w ?? null,
+              smoothed_delta_w: row.smoothed_delta_w ?? null,
             });
           }
 
-          // OFF notification only if already closed
           if (row.status === "closed" && row.ended_at) {
             recovered.push({
               id: `off-${row.id}`,
@@ -171,6 +189,8 @@ export default function HomeScreen() {
               time: row.ended_at,
               type: "off",
               appliance_label: row.appliance_label,
+              delta_w: row.raw_off_delta_w ?? null,
+              smoothed_delta_w: row.smoothed_off_delta_w ?? null,
             });
           }
         }
@@ -246,6 +266,8 @@ export default function HomeScreen() {
                 time: row.started_at ?? new Date().toISOString(),
                 type: "on",
                 appliance_label: row.appliance_label,
+                delta_w: row.raw_delta_w ?? null,
+                smoothed_delta_w: row.smoothed_delta_w ?? null,
               });
             }
 
@@ -272,6 +294,8 @@ export default function HomeScreen() {
                 time: newRow.ended_at ?? new Date().toISOString(),
                 type: "off",
                 appliance_label: newRow.appliance_label,
+                delta_w: newRow.raw_off_delta_w ?? null,
+                smoothed_delta_w: newRow.smoothed_off_delta_w ?? null,
               });
             }
 
@@ -395,7 +419,7 @@ export default function HomeScreen() {
 
 	return (
 		<>
-			<ScrollView key={renderKey} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }} refreshControl={
+			<ScrollView key={renderKey} contentContainerStyle={{ flexGrow: 1 }} refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -432,7 +456,7 @@ export default function HomeScreen() {
           
         >
           {/* Example list items */}
-          <View className='w-full p-4 pt-20 flex flex-col mb-4'>
+          <View className='w-full p-4 pt-20 flex flex-col'>
             <Pressable onPress={()=>setModalVisible(true)}>
               <View className='flex flex-row gap-2 justify-between'>
                 <View className='flex flex-row gap-2'>
@@ -497,7 +521,7 @@ export default function HomeScreen() {
 
           </View>
           <View className="p-4">
-            <View className='space-y-4 border border-foreground/5 rounded-lg h-[85%]'>
+            <View className='space-y-4 border border-foreground/5 rounded-lg'>
               <Pressable onPress={()=>router.navigate('/history')}>
                 <View className='flex flex-row justify-between items-center px-5 py-4'>
                   <Text className='font-medium'>Today</Text>
@@ -512,7 +536,7 @@ export default function HomeScreen() {
                 nestedScrollEnabled={true}
                 className="px-4 pt-2 mb-6"
               >
-                  <View className="flex flex-col gap-2">
+                  <View className="flex flex-col gap-2 pb-16">
                     {notif.length === 0 ? (
                       <View className="p-4">
                         <Text className="text-sm text-gray-500">No recent notifications</Text>
@@ -520,7 +544,7 @@ export default function HomeScreen() {
                     ) : (
                       notif.map((n, index) => (
                         <View key={n.id ?? index} className="flex flex-row p-4 gap-2">
-                          <View className="px-3 py-2 bg-gray-800 rounded-lg">
+                          <View className="px-3 py-2 bg-gray-800 rounded-lg self-start">
                             <Microwave color={"#fff"} size={36} />
                           </View>
 
@@ -551,6 +575,16 @@ export default function HomeScreen() {
                             </Text>
 
                             <Text className="font-medium capitalize">{n.message}</Text>
+
+                            {n.delta_w != null && !Number.isNaN(Number(n.delta_w)) && (
+                              <Text className={`font-light ${n.type === "on" ? "text-green-600" : "text-red-600"}`}>
+                                {n.type === "on" ? "Spike" : "Drop"}:{" "}
+                                {n.type === "on"
+                                  ? `${Number(n.delta_w) > 0 ? "+" : ""}${Number(n.delta_w).toFixed(1)} W`
+                                  : `${Math.abs(Number(n.delta_w)).toFixed(1)} W`}
+                              </Text>
+                            )}
+
                           </View>
                         </View>
                       ))

@@ -86,7 +86,7 @@ export default function TabsLayout(){
       }}
         style={{
         position: 'absolute',
-        bottom: (TAB_BAR_HEIGHT + (insets.bottom ?? 0)) - 6,
+        bottom: (TAB_BAR_HEIGHT + (insets.bottom ?? 0)) - 20,
         alignSelf: 'center',
         zIndex: 999,
         elevation: 10,

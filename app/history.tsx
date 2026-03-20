@@ -58,6 +58,7 @@ export default function HistoryScreen(){
   const loadHistory = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       const end = new Date();
       end.setHours(24, 0, 0, 0);
@@ -67,51 +68,53 @@ export default function HistoryScreen(){
       start.setHours(0, 0, 0, 0);
 
       const { data, error } = await supabase
-        .from('energy_readings_log')
-        .select('id, snapshot_at, detected_appliances')
-        .gte('snapshot_at', start.toISOString())
-        .lt('snapshot_at', end.toISOString())
-        .order('snapshot_at', { ascending: true });
+        .from('appliance_events')
+        .select(`
+          id,
+          appliance_label,
+          started_at,
+          ended_at,
+          status,
+          matched_state_w,
+          estimated_energy_kwh
+        `)
+        .gte('started_at', start.toISOString())
+        .lt('started_at', end.toISOString())
+        .order('started_at', { ascending: false });
 
       if (error) throw error;
 
-      const rows = (data ?? []) as Array<{ snapshot_at: string; detected_appliances: any }>
-      if (rows.length < 2) {
-        setNotif([]);
-        return;
-      }
+      const rows = (data ?? []) as Array<{
+        id: number;
+        appliance_label: string;
+        started_at: string;
+        ended_at: string | null;
+        status: string;
+        matched_state_w: number;
+        estimated_energy_kwh: number;
+      }>;
 
-      const events: NotifData[] = [];
-      for (let i = 1; i < rows.length; i++) {
-        const prev = rows[i - 1];
-        const cur = rows[i];
+      const events: NotifData[] = rows.map((row) => {
+        let message = '';
 
-        const prevList = Array.isArray(prev.detected_appliances) ? prev.detected_appliances : [];
-        const curList = Array.isArray(cur.detected_appliances) ? cur.detected_appliances : [];
-
-        const prevNames = new Set(prevList.map((d: any) => d?.name).filter(Boolean));
-        const curNames = new Set(curList.map((d: any) => d?.name).filter(Boolean));
-
-        for (const name of curNames) {
-          if (!prevNames.has(name)) {
-            events.push({
-              time: cur.snapshot_at,
-              message: `${name} turned on`,
-            });
-          }
+        if (row.status === 'on') {
+          message = `${row.appliance_label} turned on`;
+        } else if (row.status === 'off') {
+          message = `${row.appliance_label} turned off`;
+        } else if (row.status === 'completed') {
+          message = `${row.appliance_label} usage completed`;
+        } else {
+          message = `${row.appliance_label} event: ${row.status}`;
         }
 
-        for (const name of prevNames) {
-          if (!curNames.has(name)) {
-            events.push({
-              time: cur.snapshot_at,
-              message: `${name} turned off`,
-            });
-          }
-        }
-      }
+        return {
+          id: String(row.id),
+          time: row.started_at,
+          message,
+        };
+      });
 
-      setNotif(events.reverse());
+      setNotif(events);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load history');
       setNotif([]);
@@ -129,20 +132,44 @@ export default function HistoryScreen(){
   const groups = useMemo(() => {
     const grouped: Record<string, NotifData[]> = {};
 
+    const startOfDay = (value: Date) => {
+      const d = new Date(value);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const now = new Date();
+    const today = startOfDay(now);
+
     notif.forEach((n) => {
-      const date = new Date(n.time);
-      const now = new Date();
-      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      const eventDate = new Date(n.time);
+      const eventDay = startOfDay(eventDate);
+
+      const diffMs = today.getTime() - eventDay.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
       let label: string;
+
       if (diffDays === 0) label = "Today";
       else if (diffDays === 1) label = "Yesterday";
       else if (diffDays <= 7) label = "This Week";
       else if (diffDays <= 30) label = "This Month";
-      else label = date.toLocaleDateString([], { month: "long", year: "numeric" });
+      else {
+        label = eventDate.toLocaleDateString([], {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
 
       if (!grouped[label]) grouped[label] = [];
       grouped[label].push(n);
+    });
+
+    Object.keys(grouped).forEach((key) => {
+      grouped[key].sort(
+        (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+      );
     });
 
     return grouped;
@@ -150,12 +177,13 @@ export default function HistoryScreen(){
 
   const availableGroups = useMemo(() => {
     const preferredOrder = ["Today", "Yesterday", "This Week", "This Month"];
-
     const keys = Object.keys(groups);
+
     const orderedPreferred = preferredOrder.filter((k) => keys.includes(k));
+
     const remaining = keys
       .filter((k) => !preferredOrder.includes(k))
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
     return [...orderedPreferred, ...remaining];
   }, [groups]);
@@ -191,7 +219,7 @@ export default function HistoryScreen(){
         }}
       />
       <View className="flex-1">
-        <Animated.ScrollView nestedScrollEnabled className="flex-1 p-4 mb-10" >
+        <Animated.ScrollView nestedScrollEnabled className="flex-1 p-4 mb-12" >
           <Pressable onPress={pressOpacityBackground}>
           {loading ? (
             <Text className="text-sm text-gray-600">Loading...</Text>
@@ -216,7 +244,7 @@ export default function HistoryScreen(){
               {selectedGroup && groups[selectedGroup] ? (
                 <Animated.View key={selectedGroup} style={[animatedStyle]}>
                   <Text className="text-xl text-green-500 mb-4">{selectedGroup}</Text>
-                  <View className="p-2 gap-6">
+                  <View className="p-2 gap-6 pb-6">
                     {groups[selectedGroup].map((n, index) => (
                       <View key={index} className='flex flex-row justify-between items-center'>
                         <View className="flex flex-row items-center gap-2">
