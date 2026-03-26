@@ -19,7 +19,7 @@ import { useStats } from '@/lib/statsContext';
 
 export default function StatsTabScreen(){
 
-  const { selectedDate, setSelectedDate } = useStats();
+  const { selectedDate, setSelectedDate, mode } = useStats();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -30,12 +30,15 @@ export default function StatsTabScreen(){
 
   const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
+  useEffect(() => {
     setLoading(true);
-    setInterval(()=>{
+
+    const timer = setTimeout(() => {
       setLoading(false);
-    },1000)
-  },[selectedDate])
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [selectedDate, mode]);
 
   const blur = useSharedValue(0);
   

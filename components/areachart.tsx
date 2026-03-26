@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Pressable } from "react-native";
 import {
   VictoryChart,
@@ -34,8 +34,9 @@ type ApiResponse = {
 const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
 
 export default function StackedAreaChart() {
-  const [chartSeries, setChartSeries] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const abortRef = useRef<AbortController | null>(null);
 
   const {
     setBaselinePower,
@@ -43,6 +44,8 @@ export default function StackedAreaChart() {
     selectedDate,
     mode,
     setMode,
+    chartSeries,
+    setChartSeries
   } = useStats();
 
   function convertApiDataToVictory(data: ApiItem[] = []): ChartPoint[] {
@@ -52,8 +55,21 @@ export default function StackedAreaChart() {
     }));
   }
 
+  const handleModeChange = (nextMode: "daily" | "week" | "month") => {
+    if (nextMode === mode) return;
+
+    abortRef.current?.abort();
+    setLoading(true);
+    setMode(nextMode);
+  };
+
   useEffect(() => {
     if (!selectedDate) return;
+
+    abortRef.current?.abort();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     let url = "";
 
@@ -67,12 +83,13 @@ export default function StackedAreaChart() {
       setChartSeries([]);
       setBaselinePower(0);
       setTotalEnergy(0);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
 
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
@@ -80,6 +97,8 @@ export default function StackedAreaChart() {
         return res.json() as Promise<ApiResponse>;
       })
       .then((data) => {
+        if (controller.signal.aborted) return;
+
         console.log("chart api response:", data);
 
         if (!data?.data || !Array.isArray(data.data)) {
@@ -96,14 +115,22 @@ export default function StackedAreaChart() {
         setTotalEnergy(Number(data.total_energy_kwh ?? 0));
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
+
         console.error("Energy fetch error:", err);
         setChartSeries([]);
         setBaselinePower(0);
         setTotalEnergy(0);
       })
       .finally(() => {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [selectedDate, mode, setBaselinePower, setTotalEnergy]);
 
   const monthSeries1 = [
@@ -151,7 +178,7 @@ export default function StackedAreaChart() {
     <View style={{ backgroundColor: "#0a0a0a", borderRadius: 16, padding: 2 }}>
       <View className="p-4 -my-8 z-10">
         <View className="flex flex-row justify-evenly p-2">
-          <Pressable onPress={() => setMode("daily")}>
+          <Pressable onPress={() => handleModeChange("daily")}>
             <Text
               className={`font-medium ${
                 mode === "daily"
@@ -163,7 +190,7 @@ export default function StackedAreaChart() {
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => setMode("week")}>
+          <Pressable onPress={() => handleModeChange("week")}>
             <Text
               className={`font-medium ${
                 mode === "week"
@@ -175,7 +202,7 @@ export default function StackedAreaChart() {
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => setMode("month")}>
+          <Pressable onPress={() => handleModeChange("month")}>
             <Text
               className={`font-medium ${
                 mode === "month"
@@ -184,18 +211,6 @@ export default function StackedAreaChart() {
               }`}
             >
               Month
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={() => setMode("year")}>
-            <Text
-              className={`font-medium ${
-                mode === "year"
-                  ? "text-foreground border-b-2 border-green-500"
-                  : "text-gray-600"
-              }`}
-            >
-              Year
             </Text>
           </Pressable>
         </View>

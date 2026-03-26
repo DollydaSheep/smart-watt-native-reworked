@@ -1,43 +1,64 @@
 import { Stack } from "expo-router";
 import { Dimensions, Pressable, ScrollView, TouchableOpacity, View } from "react-native";
 import { Text } from '@/components/ui/text';
-import { Edit, Ellipsis, EllipsisVertical, LayoutPanelLeft, Microwave, Share2, Trash2 } from "lucide-react-native";
+import { EllipsisVertical, LayoutPanelLeft, Microwave, Share2, Trash2 } from "lucide-react-native";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Animated, { Extrapolation, interpolate, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue
+} from "react-native-reanimated";
 import { BlurView } from "expo-blur";
-import { NotifData } from '@/lib/types';
 import { supabase } from "@/lib/supabase";
 import { useFocusEffect } from "expo-router";
 
-export default function HistoryScreen(){
+type HistoryItem = {
+  id: string;
+  time: string;
+  appliance: string;
+  message: string;
+  deltaText: string;
+  deltaValue: number;
+  rawStatus: string;
+};
 
+const PAGE_SIZE = 30;
+const CACHE_MAX = 30;
+
+export default function HistoryScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [notif, setNotif] = useState<NotifData[]>([]);
+  const [notif, setNotif] = useState<HistoryItem[]>([]);
+  const [cache, setCache] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
 
   const sheetRef = useRef<BottomSheet>(null);
-
   const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
   const snapPoints = useMemo(() => {
-      const first = (SCREEN_HEIGHT);  // 55%
-      const second = (SCREEN_HEIGHT) * 0.4; // 75%
-      return [first, second];
-    }, []);
+    const first = SCREEN_HEIGHT;
+    const second = SCREEN_HEIGHT * 0.4;
+    return [first, second];
+  }, [SCREEN_HEIGHT]);
 
-  const openSheet = useCallback(() => {
+  const openSheet = useCallback((item: HistoryItem) => {
+    setSelectedItem(item);
     setSheetOpen(true);
     sheetRef.current?.expand();
   }, []);
 
   const blur = useSharedValue(0);
-
-  const min = snapPoints[0];      // collapsed
-  const max = snapPoints[1];  // fully open
-  
+  const min = snapPoints[0];
+  const max = snapPoints[1];
   const animatedPosition = useSharedValue(0);
 
   const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
@@ -45,7 +66,7 @@ export default function HistoryScreen(){
   const opacity = useDerivedValue(() => {
     return interpolate(
       animatedPosition.value,
-      [min, max],     // fully open → collapsed
+      [min, max],
       [1, 0.1],
       Extrapolation.CLAMP
     );
@@ -55,82 +76,123 @@ export default function HistoryScreen(){
     opacity: opacity.value,
   }));
 
-  const loadHistory = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const normalizeEvent = (row: {
+    id: number;
+    appliance_label: string;
+    started_at: string;
+    ended_at: string | null;
+    status: string;
+    matched_state_w: number | null;
+  }): HistoryItem => {
+    const isClosed =
+      row.status === "off" ||
+      row.status === "completed" ||
+      (!!row.ended_at && row.status !== "on");
 
-    try {
-      const end = new Date();
-      end.setHours(24, 0, 0, 0);
+    const watt = Number(row.matched_state_w ?? 0);
+    const signedPower = isClosed ? -Math.abs(watt) : Math.abs(watt);
 
-      const start = new Date(end);
-      start.setDate(end.getDate() - 30);
-      start.setHours(0, 0, 0, 0);
+    return {
+      id: String(row.id),
+      appliance: row.appliance_label,
+      time: isClosed && row.ended_at ? row.ended_at : row.started_at,
+      rawStatus: row.status,
+      message: `${row.appliance_label
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ")} ${isClosed ? "Turned Off" : "Turned On"}`,
+      deltaText: `${signedPower > 0 ? "+" : ""}${signedPower}W`,
+      deltaValue: signedPower,
+    };
+  };
 
-      const { data, error } = await supabase
-        .from('appliance_events')
-        .select(`
-          id,
-          appliance_label,
-          started_at,
-          ended_at,
-          status,
-          matched_state_w,
-          estimated_energy_kwh
-        `)
-        .gte('started_at', start.toISOString())
-        .lt('started_at', end.toISOString())
-        .order('started_at', { ascending: false });
+  const mergeIntoCache = useCallback((incoming: HistoryItem[]) => {
+    setCache((prev) => {
+      const existingIds = new Set(prev.map((item) => item.id));
+      const merged = [...incoming.filter((item) => !existingIds.has(item.id)), ...prev]
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, CACHE_MAX);
 
-      if (error) throw error;
+      return merged;
+    });
+  }, []);
 
-      const rows = (data ?? []) as Array<{
-        id: number;
-        appliance_label: string;
-        started_at: string;
-        ended_at: string | null;
-        status: string;
-        matched_state_w: number;
-        estimated_energy_kwh: number;
-      }>;
+  const fetchHistory = useCallback(
+    async (pageToLoad = 0, append = false) => {
+      try {
+        if (append) setLoadingMore(true);
+        else setLoading(true);
 
-      const events: NotifData[] = rows.map((row) => {
-        let message = '';
+        setError(null);
 
-        if (row.status === 'on') {
-          message = `${row.appliance_label} turned on`;
-        } else if (row.status === 'off') {
-          message = `${row.appliance_label} turned off`;
-        } else if (row.status === 'completed') {
-          message = `${row.appliance_label} usage completed`;
+        const from = pageToLoad * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        const { data, error } = await supabase
+          .from("appliance_events")
+          .select(`
+            id,
+            appliance_label,
+            started_at,
+            ended_at,
+            status,
+            matched_state_w,
+            estimated_energy_kwh
+          `)
+          .order("started_at", { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        const rows = (data ?? []) as Array<{
+          id: number;
+          appliance_label: string;
+          started_at: string;
+          ended_at: string | null;
+          status: string;
+          matched_state_w: number | null;
+          estimated_energy_kwh: number | null;
+        }>;
+
+        const normalized = rows.map(normalizeEvent);
+
+        if (append) {
+          setNotif((prev) => [...prev, ...normalized]);
         } else {
-          message = `${row.appliance_label} event: ${row.status}`;
+          setNotif(normalized);
         }
 
-        return {
-          id: String(row.id),
-          time: row.started_at,
-          message,
-        };
-      });
+        mergeIntoCache(normalized);
+        setHasMore(rows.length === PAGE_SIZE);
+        setPage(pageToLoad);
+      } catch (e: any) {
+        setError(e?.message ?? "Failed to load history");
+        if (!append) setNotif([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [mergeIntoCache]
+  );
 
-      setNotif(events);
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load history');
-      setNotif([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadLatest = useCallback(async () => {
+    await fetchHistory(0, false);
+  }, [fetchHistory]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    await fetchHistory(page + 1, true);
+  }, [fetchHistory, hasMore, loadingMore, page]);
 
   useFocusEffect(
     useCallback(() => {
-      loadHistory();
-    }, [loadHistory])
+      loadLatest();
+    }, [loadLatest])
   );
 
   const groups = useMemo(() => {
-    const grouped: Record<string, NotifData[]> = {};
+    const grouped: Record<string, HistoryItem[]> = {};
 
     const startOfDay = (value: Date) => {
       const d = new Date(value);
@@ -198,121 +260,172 @@ export default function HistoryScreen(){
     (pos) => {
       blur.value = interpolate(
         pos,
-        [min, max],   // bottom → fully open (adjust to your screen height)
-        [0, 1],    // blur range
+        [min, max],
+        [0, 1],
         Extrapolation.CLAMP
       );
     }
   );
 
   const pressOpacityBackground = () => {
-    if(sheetOpen){
+    if (sheetOpen) {
       sheetRef.current?.close();
     }
-  }
+  };
 
-  return(
+  return (
     <>
-      <Stack.Screen 
+      <Stack.Screen
         options={{
           title: "History"
         }}
       />
-      <View className="flex-1">
-        <Animated.ScrollView nestedScrollEnabled className="flex-1 p-4 mb-12" >
-          <Pressable onPress={pressOpacityBackground}>
-          {loading ? (
-            <Text className="text-sm text-gray-600">Loading...</Text>
-          ) : error ? (
-            <Text className="text-sm text-red-500">{error}</Text>
-          ) : notif.length === 0 ? (
-            <Text className="text-sm text-gray-600">No history found.</Text>
-          ) : (
-            <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-                <View className="flex-row gap-2">
-                  {availableGroups.map((label) => (
-                    <Pressable key={label} onPress={() => setSelectedGroup(label)}>
-                      <View className={`px-3 py-1 rounded-full ${selectedGroup === label ? 'bg-green-600' : 'bg-foreground/10'}`}>
-                        <Text className={`${selectedGroup === label ? 'text-white' : 'text-gray-400'} text-xs`}>{label}</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              </ScrollView>
 
-              {selectedGroup && groups[selectedGroup] ? (
-                <Animated.View key={selectedGroup} style={[animatedStyle]}>
-                  <Text className="text-xl text-green-500 mb-4">{selectedGroup}</Text>
-                  <View className="p-2 gap-6 pb-6">
-                    {groups[selectedGroup].map((n, index) => (
-                      <View key={index} className='flex flex-row justify-between items-center'>
-                        <View className="flex flex-row items-center gap-2">
-                          <View className='px-3 py-2 bg-gray-800 rounded-lg'>
-                            <Microwave color={'#fff'} size={36}/>
-                          </View>
-                          <View className="gap-1">
-                            <Text className='text-sm font-medium'>{n.message}</Text>
-                            <Text className='text-[10px] text-gray-600'>
-                              {new Date(n.time).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true
-                              })}
-                              {" | "}
-                              {new Date(n.time).toLocaleDateString([], {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric"
-                              })}
-                            </Text>
-                          </View>
+      <View className="flex-1">
+        <Animated.ScrollView nestedScrollEnabled className="flex-1 p-4 mb-12">
+          <Pressable onPress={pressOpacityBackground}>
+            {loading ? (
+              <Text className="text-sm text-gray-600">Loading...</Text>
+            ) : error ? (
+              <Text className="text-sm text-red-500">{error}</Text>
+            ) : notif.length === 0 ? (
+              <Text className="text-sm text-gray-600">No history found.</Text>
+            ) : (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                  <View className="flex-row gap-2">
+                    {availableGroups.map((label) => (
+                      <Pressable key={label} onPress={() => setSelectedGroup(label)}>
+                        <View className={`px-3 py-1 rounded-full ${selectedGroup === label ? "bg-green-600" : "bg-foreground/10"}`}>
+                          <Text className={`${selectedGroup === label ? "text-white" : "text-gray-400"} text-xs`}>
+                            {label}
+                          </Text>
                         </View>
-                        <Pressable onPress={openSheet}>
-                          <EllipsisVertical color={'#fff'}/>
-                        </Pressable>
-                      </View>
+                      </Pressable>
                     ))}
                   </View>
-                </Animated.View>
-              ) : null}
-            </>
-          )}
+                </ScrollView>
+
+                {selectedGroup && groups[selectedGroup] ? (
+                  <Animated.View key={selectedGroup} style={[animatedStyle]}>
+                    <Text className="text-xl text-green-500 mb-4">{selectedGroup}</Text>
+
+                    <View className="p-2 gap-6 pb-6">
+                      {groups[selectedGroup].map((n) => (
+                        <View key={n.id} className="flex flex-row justify-between items-center">
+                          <View className="flex flex-row items-center gap-3 flex-1">
+                            <View className="px-3 py-2 bg-gray-800 rounded-lg">
+                              <Microwave color={"#fff"} size={36} />
+                            </View>
+
+                            <View className="gap-1 flex-1">
+                              <View className="flex-row items-center gap-2">
+                                <Text className="text-sm font-medium flex-1">{n.message}</Text>
+                                <Text
+                                  className={`text-xs font-semibold ${
+                                    n.deltaValue > 0 ? "text-green-500" : "text-red-500"
+                                  }`}
+                                >
+                                  {n.deltaText}
+                                </Text>
+                              </View>
+
+                              <Text className="text-[10px] text-gray-600">
+                                {new Date(n.time).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: true
+                                })}
+                                {" | "}
+                                {new Date(n.time).toLocaleDateString([], {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric"
+                                })}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Pressable onPress={() => openSheet(n)}>
+                            <EllipsisVertical color={"#fff"} />
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+
+                    {hasMore && (
+                      <Pressable
+                        onPress={loadMore}
+                        className="bg-foreground/10 rounded-xl px-4 py-3 items-center mb-6"
+                      >
+                        <Text className="text-sm text-white">
+                          {loadingMore ? "Loading..." : "Load More"}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </Animated.View>
+                ) : null}
+              </>
+            )}
           </Pressable>
         </Animated.ScrollView>
-        
 
         <BottomSheet
           ref={sheetRef}
           index={-1}
-          snapPoints={['35%']}
-          onClose={()=>setSheetOpen(false)}
+          snapPoints={["35%"]}
+          onClose={() => setSheetOpen(false)}
           animatedPosition={animatedPosition}
           enableDynamicSizing={false}
           enablePanDownToClose
-          backgroundStyle={{ backgroundColor: '#1a1a1a' }}
-          handleIndicatorStyle={{ backgroundColor: '#444' }}
+          backgroundStyle={{ backgroundColor: "#1a1a1a" }}
+          handleIndicatorStyle={{ backgroundColor: "#444" }}
         >
           <View className="px-6 py-4">
             <View className="flex-row items-center mb-3">
               <View className="bg-green-600 w-10 h-10 rounded-md mr-3" />
-              <View>
-                <Text className="text-white text-lg">Microwave turned on</Text>
-                <Text className="text-gray-400 text-sm">5:00 AM | 31/10/2025</Text>
+              <View className="flex-1">
+                <Text className="text-white text-lg">
+                  {selectedItem?.message ?? "No item selected"}
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  {selectedItem
+                    ? `${new Date(selectedItem.time).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      })} | ${new Date(selectedItem.time).toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })}`
+                    : ""}
+                </Text>
+                {selectedItem ? (
+                  <Text
+                    className={`text-sm mt-1 font-semibold ${
+                      selectedItem.deltaValue > 0 ? "text-green-500" : "text-red-500"
+                    }`}
+                  >
+                    {selectedItem.deltaText}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
-            <View className="border-b border-border my-2"></View>
-            {/* Action Buttons */}
+            <View className="border-b border-border my-2" />
+
             <View className="flex-row justify-between mt-4 mx-4">
               <TouchableOpacity className="items-center">
                 <Share2 color="white" size={22} />
                 <Text className="text-gray-300 text-xs mt-1">Share</Text>
               </TouchableOpacity>
+
               <TouchableOpacity className="items-center">
                 <LayoutPanelLeft color="white" size={22} />
                 <Text className="text-gray-300 text-xs mt-1">View Appliance</Text>
               </TouchableOpacity>
+
               <TouchableOpacity className="items-center">
                 <Trash2 color="red" size={22} />
                 <Text className="text-gray-300 text-xs mt-1">Remove</Text>
@@ -322,5 +435,5 @@ export default function HistoryScreen(){
         </BottomSheet>
       </View>
     </>
-  )
+  );
 }

@@ -12,6 +12,7 @@ import StackedAreaChart from "./areachart";
 import DailyPeaksBarChart from "./barchart";
 import ApplianceUsageRingChart from "./ringchart";
 import Skeletonbox from "./skeleton/skeletonbox";
+import { useStats } from "@/lib/statsContext";
 
 const data = [...new Array(3).keys()]
 const width = Dimensions.get("window").width;
@@ -27,6 +28,7 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
 
   const ref = React.useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);
+  const { selectedDate, setSelectedDate, mode } = useStats();
   const [title, setTitle] = useState(["Total Consumption","Peaks","Appliance Usage"])
   
   const [chartData, setChartData] = useState(null)
@@ -43,12 +45,15 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
     });
   };
 
-  useEffect(()=>{
-    setLoading(true)
-    setInterval(()=>{
+  useEffect(() => {
+    setLoading(true);
+
+    const timer = setTimeout(() => {
       setLoading(false);
-    },2000)
-  },[])
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [selectedDate, mode]);
 
   return(
     <>
