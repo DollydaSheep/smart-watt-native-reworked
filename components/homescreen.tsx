@@ -483,9 +483,9 @@ export default function HomeScreen() {
                       ): (
                         <Text className={`text-3xl font-medium ${anomalyLevel === 'critical' ? 'text-red-500' : anomalyLevel === 'warning' ? 'text-yellow-500' : ''}`}>0</Text>
                       )}
-                      <Text className='text-base font-medium text-gray-600'>kW</Text>
+                      <Text className='text-base font-medium text-gray-600'>W</Text>
                     </View>
-                    <Text className='self-end font-medium text-gray-600 text-base text-[1em]'>/{powerLimit} kW</Text>
+                    <Text className='self-end font-medium text-gray-600 text-base text-[1em]'>/{powerLimit} W</Text>
                   </View>
                   {data ? (
                     <>

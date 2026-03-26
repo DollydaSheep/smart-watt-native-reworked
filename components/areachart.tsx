@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Pressable } from "react-native";
 import {
   VictoryChart,
@@ -10,150 +10,112 @@ import { Defs, LinearGradient, Stop } from "react-native-svg";
 import { Text } from "@/components/ui/text";
 import { useStats } from "@/lib/statsContext";
 
+type ChartPoint = {
+  x: string;
+  y: number | null;
+};
+
+type ApiItem = {
+  label: string;
+  date?: string;
+  energy_kwh: number | null;
+};
+
+type ApiResponse = {
+  period: string;
+  metric?: string;
+  date?: string;
+  anchorDate?: string;
+  timezone?: string;
+  total_energy_kwh?: number | null;
+  data?: ApiItem[];
+};
+
+const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
+
 export default function StackedAreaChart() {
-  
-  const [chartSeries, setChartSeries] = useState([]);
-  const { setBaselinePower, setTotalEnergy, selectedDate, mode, setMode } = useStats();
+  const [chartSeries, setChartSeries] = useState<ChartPoint[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  function getWeekRange(dateString: string) {
+  const {
+    setBaselinePower,
+    setTotalEnergy,
+    selectedDate,
+    mode,
+    setMode,
+  } = useStats();
 
-    const date = new Date(dateString);
-    const day = date.getDay(); // 0 = Sunday
-
-    const start = new Date(date);
-    start.setDate(date.getDate() - day);
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    const format = (d: Date) => d.toISOString().split("T")[0];
-
-    return {
-      start: format(start),
-      end: format(end)
-    };
+  function convertApiDataToVictory(data: ApiItem[] = []): ChartPoint[] {
+    return data.map((item) => ({
+      x: item.label,
+      y: item.energy_kwh,
+    }));
   }
 
   useEffect(() => {
-
     if (!selectedDate) return;
 
     let url = "";
 
     if (mode === "daily") {
-      url = `https://puisne-krish-uncommiseratively.ngrok-free.dev/daily-energy?date=${selectedDate}`;
+      url = `${API_BASE}/power/daily?date=${selectedDate}&tz=Asia/Manila`;
+    } else if (mode === "week") {
+      url = `${API_BASE}/power/weekly?date=${selectedDate}&tz=Asia/Manila`;
+    } else if (mode === "month") {
+      url = `${API_BASE}/power/monthly?date=${selectedDate}&tz=Asia/Manila`;
+    } else {
+      setChartSeries([]);
+      setBaselinePower(0);
+      setTotalEnergy(0);
+      return;
     }
 
-    if (mode === "week") {
-      const { start, end } = getWeekRange(selectedDate);
-
-      url = `https://puisne-krish-uncommiseratively.ngrok-free.dev/week-energy?start=${start}&end=${end}`;
-    }
+    setLoading(true);
 
     fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        console.log(data);
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json() as Promise<ApiResponse>;
+      })
+      .then((data) => {
+        console.log("chart api response:", data);
 
-        if (!data || !data.series) {
+        if (!data?.data || !Array.isArray(data.data)) {
           setChartSeries([]);
           setBaselinePower(0);
-          setTotalEnergy(0);
+          setTotalEnergy(Number(data?.total_energy_kwh ?? 0));
           return;
         }
 
-        setChartSeries(data.series);
-        setBaselinePower(data.baseline_power_w);
-        setTotalEnergy(data.total_energy_kwh);
-      })
-      .catch(err => {
-        console.error("Energy fetch error:", err);
+        const victorySeries = convertApiDataToVictory(data.data);
 
+        setChartSeries(victorySeries);
+        setBaselinePower(0);
+        setTotalEnergy(Number(data.total_energy_kwh ?? 0));
+      })
+      .catch((err) => {
+        console.error("Energy fetch error:", err);
         setChartSeries([]);
         setBaselinePower(0);
         setTotalEnergy(0);
+      })
+      .finally(() => {
+        setLoading(false);
       });
+  }, [selectedDate, mode, setBaselinePower, setTotalEnergy]);
 
-  }, [selectedDate, mode]);
-
-  const dailySeries1 = [
-    {x: "12AM", y: 9},
-    {x: "2AM", y: 2},
-    {x: "4AM", y: 3},
-    {x: "6AM", y: 14},
-    {x: "8AM", y: 25},
-    {x: "10AM", y: 35},
-    {x: "12PM", y: 41},
-    {x: "2PM", y: 36},
-    {x: "4PM", y: 37},
-    {x: "6PM", y: 48},
-    {x: "8PM", y: 40},
-    {x: "10PM", y: 29},
-  ]
-
-  // 🗓 WEEKLY DATA (7 days)
-  const weekSeries1 = [
-    { x: "Mon", y: 4 },
-    { x: "Tue", y: 5 },
-    { x: "Wed", y: 3 },
-    { x: "Thu", y: 6 },
-    { x: "Fri", y: 5 },
-    { x: "Sat", y: 8 },
-    { x: "Sun", y: 7 },
-  ];
-
-  const weekSeries2 = [
-    { x: "Mon", y: 2 },
-    { x: "Tue", y: 3 },
-    { x: "Wed", y: 2 },
-    { x: "Thu", y: 4 },
-    { x: "Fri", y: 3 },
-    { x: "Sat", y: 4 },
-    { x: "Sun", y: 5 },
-  ];
-
-  const weekSeries3 = [
-    { x: "Mon", y: 1 },
-    { x: "Tue", y: 2 },
-    { x: "Wed", y: 1 },
-    { x: "Thu", y: 2 },
-    { x: "Fri", y: 1 },
-    { x: "Sat", y: 3 },
-    { x: "Sun", y: 2 },
-  ];
-
-  // 🗓 MONTHLY DATA (7 months)
   const monthSeries1 = [
-    { x: "Jan", y: 5 },
-    { x: "Feb", y: 10 },
-    { x: "Mar", y: 8 },
-    { x: "Apr", y: 12 },
-    { x: "May", y: 9 },
-    { x: "Jun", y: 14 },
-    { x: "Jul", y: 10 },
+    { x: "1", y: 0.5 },
+    { x: "2", y: 1.0 },
+    { x: "3", y: 0.8 },
+    { x: "4", y: 1.2 },
+    { x: "5", y: 0.9 },
+    { x: "6", y: 1.4 },
+    { x: "7", y: 1.0 },
   ];
 
-  const monthSeries2 = [
-    { x: "Jan", y: 4 },
-    { x: "Feb", y: 6 },
-    { x: "Mar", y: 5 },
-    { x: "Apr", y: 7 },
-    { x: "May", y: 6 },
-    { x: "Jun", y: 8 },
-    { x: "Jul", y: 7 },
-  ];
-
-  const monthSeries3 = [
-    { x: "Jan", y: 3 },
-    { x: "Feb", y: 5 },
-    { x: "Mar", y: 4 },
-    { x: "Apr", y: 6 },
-    { x: "May", y: 4 },
-    { x: "Jun", y: 7 },
-    { x: "Jul", y: 5 },
-  ];
-
-  // 🗓 YEARLY DATA (12 months)
   const yearSeries1 = [
     { x: "Jan", y: 30 },
     { x: "Feb", y: 25 },
@@ -169,38 +131,27 @@ export default function StackedAreaChart() {
     { x: "Dec", y: 39 },
   ];
 
-  const yearSeries2 = yearSeries1.map((p) => ({
-    x: p.x,
-    y: Math.max(10, p.y - 15),
-  }));
+  const finalSeries =
+    mode === "daily" || mode === "week" || mode === "month"
+      ? chartSeries
+      : mode === "year"
+      ? yearSeries1
+      : monthSeries1;
 
-  const yearSeries3 = yearSeries1.map((p) => ({
-    x: p.x,
-    y: Math.max(5, p.y - 25),
-  }));
+  const yDomain: [number, number] = useMemo(() => {
+    const valid = finalSeries
+      .map((p) => p.y)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
 
-  // Helper: stack each layer
-  const stackData = (s1: any[], s2: any[], s3: any[]) => {
-    const stacked2 = s2.map((p, i) => ({ x: p.x, y: p.y + s1[i].y }));
-    const stacked3 = s3.map((p, i) => ({ x: p.x, y: p.y + stacked2[i].y }));
-    return { s1, stacked2, stacked3 };
-  };
-
-  const { s1, stacked2, stacked3 } =
-    mode === 'daily'
-      ? stackData(chartSeries,chartSeries,chartSeries) :
-      mode === "week"
-      ? stackData(chartSeries, chartSeries, chartSeries)
-      : mode === "month"
-      ? stackData(monthSeries1, monthSeries2, monthSeries3)
-      : stackData(yearSeries1, yearSeries2, yearSeries3);
+    const max = valid.length ? Math.max(...valid) : 1;
+    return [0, Number((max * 1.15).toFixed(2))];
+  }, [finalSeries]);
 
   return (
     <View style={{ backgroundColor: "#0a0a0a", borderRadius: 16, padding: 2 }}>
-      {/* Toggle Header */}
       <View className="p-4 -my-8 z-10">
         <View className="flex flex-row justify-evenly p-2">
-          <Pressable onPress={() => {setMode("daily");console.log("hey")}}>
+          <Pressable onPress={() => setMode("daily")}>
             <Text
               className={`font-medium ${
                 mode === "daily"
@@ -211,7 +162,8 @@ export default function StackedAreaChart() {
               Daily
             </Text>
           </Pressable>
-          <Pressable onPress={() => {setMode("week");console.log("hey")}}>
+
+          <Pressable onPress={() => setMode("week")}>
             <Text
               className={`font-medium ${
                 mode === "week"
@@ -222,6 +174,7 @@ export default function StackedAreaChart() {
               Week
             </Text>
           </Pressable>
+
           <Pressable onPress={() => setMode("month")}>
             <Text
               className={`font-medium ${
@@ -233,6 +186,7 @@ export default function StackedAreaChart() {
               Month
             </Text>
           </Pressable>
+
           <Pressable onPress={() => setMode("year")}>
             <Text
               className={`font-medium ${
@@ -247,34 +201,28 @@ export default function StackedAreaChart() {
         </View>
       </View>
 
-      {/* Chart */}
-      <VictoryChart padding={{ top: 35, bottom: 40, left: 40, right: 20 }}>
-        {/* gradient defs */}
+      <VictoryChart
+        domain={{ y: yDomain }}
+        padding={{ top: 35, bottom: 40, left: 50, right: 20 }}
+      >
         <Defs>
           <LinearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor="#00ff99" stopOpacity="0.6" />
             <Stop offset="100%" stopColor="#00ff99" stopOpacity="0" />
           </LinearGradient>
-          {/* <LinearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="#33ccff" stopOpacity="0.4" />
-            <Stop offset="100%" stopColor="#33ccff" stopOpacity="0" />
-          </LinearGradient>
-          <LinearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="#ff6600" stopOpacity="0.3" />
-            <Stop offset="100%" stopColor="#ff6600" stopOpacity="0" />
-          </LinearGradient> */}
         </Defs>
 
         <VictoryAxis
           style={{
             axis: { stroke: "#333" },
-            tickLabels: { fill: "#aaa", fontSize: 10 },
+            tickLabels: { fill: "#aaa", fontSize: 10, angle: 0 },
             grid: { stroke: "#1a1a1a" },
           }}
         />
+
         <VictoryAxis
           dependentAxis
-          tickFormat={(t) => `${t}W`}
+          tickFormat={(t) => `${t} kWh`}
           style={{
             axis: { stroke: "#333" },
             tickLabels: { fill: "#666", fontSize: 9 },
@@ -283,32 +231,25 @@ export default function StackedAreaChart() {
         />
 
         <VictoryGroup>
-          {/* Bottom layer */}
           <VictoryArea
-            
-            data={s1}
+            interpolation="monotoneX"
+            data={finalSeries}
             style={{
-              data: { fill: "url(#grad1)", stroke: "#00ff99", strokeWidth: 2 },
+              data: {
+                fill: "url(#grad1)",
+                stroke: "#00ff99",
+                strokeWidth: 2,
+              },
             }}
           />
-          {/* Middle layer */}
-          {/* <VictoryArea
-            
-            data={stacked2}
-            style={{
-              data: { fill: "url(#grad2)", stroke: "#33ccff", strokeWidth: 2 },
-            }}
-          /> */}
-          {/* Top layer */}
-          {/* <VictoryArea
-            
-            data={stacked3}
-            style={{
-              data: { fill: "url(#grad3)", stroke: "#ff6600", strokeWidth: 2 },
-            }}
-          /> */}
         </VictoryGroup>
       </VictoryChart>
+
+      {loading && (
+        <View className="pb-3">
+          <Text className="text-center text-xs text-gray-500">Loading...</Text>
+        </View>
+      )}
     </View>
   );
 }
