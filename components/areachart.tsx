@@ -21,31 +21,36 @@ type ApiItem = {
   energy_kwh: number | null;
 };
 
+type ApiPeriodSummary = {
+  total_energy_kwh?: number | null;
+  data?: ApiItem[];
+};
+
 type ApiResponse = {
   period: string;
   metric?: string;
+  timezone?: string;
   date?: string;
   anchorDate?: string;
-  timezone?: string;
-  total_energy_kwh?: number | null;
-  data?: ApiItem[];
+  current?: ApiPeriodSummary;
+  previous?: ApiPeriodSummary;
 };
 
 const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
 
 export default function StackedAreaChart() {
   const [loading, setLoading] = useState(false);
-
   const abortRef = useRef<AbortController | null>(null);
 
   const {
     setBaselinePower,
     setTotalEnergy,
+    setPreviousTotalEnergy,
     selectedDate,
     mode,
     setMode,
     chartSeries,
-    setChartSeries
+    setChartSeries,
   } = useStats();
 
   function convertApiDataToVictory(data: ApiItem[] = []): ChartPoint[] {
@@ -83,11 +88,13 @@ export default function StackedAreaChart() {
       setChartSeries([]);
       setBaselinePower(0);
       setTotalEnergy(0);
+      setPreviousTotalEnergy(0);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setPreviousTotalEnergy(0);
 
     fetch(url, { signal: controller.signal })
       .then(async (res) => {
@@ -99,20 +106,24 @@ export default function StackedAreaChart() {
       .then((data) => {
         if (controller.signal.aborted) return;
 
-        console.log("chart api response:", data);
+        const current = data?.current;
+        const previous = data?.previous;
 
-        if (!data?.data || !Array.isArray(data.data)) {
+        const currentTotal = Number(current?.total_energy_kwh ?? 0);
+        const previousTotal = Number(previous?.total_energy_kwh ?? 0);
+        const currentData = Array.isArray(current?.data) ? current.data : [];
+
+        setPreviousTotalEnergy(previousTotal);
+        setTotalEnergy(currentTotal);
+        setBaselinePower(0);
+
+        if (!currentData.length) {
           setChartSeries([]);
-          setBaselinePower(0);
-          setTotalEnergy(Number(data?.total_energy_kwh ?? 0));
           return;
         }
 
-        const victorySeries = convertApiDataToVictory(data.data);
-
+        const victorySeries = convertApiDataToVictory(currentData);
         setChartSeries(victorySeries);
-        setBaselinePower(0);
-        setTotalEnergy(Number(data.total_energy_kwh ?? 0));
       })
       .catch((err) => {
         if (err?.name === "AbortError") return;
@@ -121,6 +132,7 @@ export default function StackedAreaChart() {
         setChartSeries([]);
         setBaselinePower(0);
         setTotalEnergy(0);
+        setPreviousTotalEnergy(0);
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -131,7 +143,14 @@ export default function StackedAreaChart() {
     return () => {
       controller.abort();
     };
-  }, [selectedDate, mode, setBaselinePower, setTotalEnergy]);
+  }, [
+    selectedDate,
+    mode,
+    setBaselinePower,
+    setTotalEnergy,
+    setPreviousTotalEnergy,
+    setChartSeries,
+  ]);
 
   const monthSeries1 = [
     { x: "1", y: 0.5 },

@@ -10,12 +10,14 @@ export type ChartPoint = {
 type StatsContextType = {
   baselinePower: number | null;
   totalEnergy: number | null;
+  previousTotalEnergy: number | null;
   selectedDate: string | null;
   mode: StatsMode;
   chartSeries: ChartPoint[];
 
   setBaselinePower: (v: number) => void;
   setTotalEnergy: (v: number) => void;
+  setPreviousTotalEnergy: (v: number) => void;
   setSelectedDate: (date: string | null) => void;
   setMode: (mode: StatsMode) => void;
   setChartSeries: (series: ChartPoint[]) => void;
@@ -28,6 +30,7 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
 
   const [baselinePower, setBaselinePower] = useState<number | null>(null);
   const [totalEnergy, setTotalEnergy] = useState<number | null>(null);
+  const [previousTotalEnergy, setPreviousTotalEnergy] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
   const [mode, setMode] = useState<StatsMode>("daily");
   const [chartSeries, setChartSeries] = useState<ChartPoint[]>([]);
@@ -37,11 +40,13 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
       value={{
         baselinePower,
         totalEnergy,
+        previousTotalEnergy,
         selectedDate,
         mode,
         chartSeries,
         setBaselinePower,
         setTotalEnergy,
+        setPreviousTotalEnergy,
         setSelectedDate,
         setMode,
         setChartSeries,

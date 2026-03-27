@@ -29,7 +29,7 @@ export default function ChartCarouselComponent({ carouselIndex, setCarouselIndex
   const ref = React.useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);
   const { selectedDate, setSelectedDate, mode } = useStats();
-  const [title, setTitle] = useState(["Total Consumption","Peaks","Appliance Usage"])
+  const [title, setTitle] = useState(["Total Consumption","Power Profile","Appliance Usage"])
   
   const [chartData, setChartData] = useState(null)
   const [loading, setLoading] = useState(true);

@@ -11,9 +11,10 @@ type ChartPoint = {
 };
 
 export default function AreaChartBottomSheet() {
-  const { totalEnergy, mode, chartSeries = [] } = useStats();
+  const { totalEnergy, previousTotalEnergy, mode, chartSeries = [] } = useStats();
 
   const numericTotalEnergy = Number(totalEnergy || 0);
+  const numericPreviousTotalEnergy = Number(previousTotalEnergy || 0);
   const estimatedCost = numericTotalEnergy * RATE_PER_KWH;
 
   const periodLabel = useMemo(() => {
@@ -21,6 +22,13 @@ export default function AreaChartBottomSheet() {
     if (mode === "week") return "Week";
     if (mode === "month") return "Month";
     return "Day";
+  }, [mode]);
+
+  const previousPeriodLabel = useMemo(() => {
+    if (mode === "daily") return "previous day";
+    if (mode === "week") return "previous week";
+    if (mode === "month") return "previous month";
+    return "previous period";
   }, [mode]);
 
   const consumptionUnitLabel = useMemo(() => {
@@ -79,6 +87,26 @@ export default function AreaChartBottomSheet() {
   const highest = formatPointLabel(highestPoint);
   const lowest = formatPointLabel(lowestPoint);
 
+  const totalDifference = numericTotalEnergy - numericPreviousTotalEnergy;
+
+  const totalPercentChange = useMemo(() => {
+    if (numericPreviousTotalEnergy <= 0) return null;
+    return (totalDifference / numericPreviousTotalEnergy) * 100;
+  }, [numericPreviousTotalEnergy, totalDifference]);
+
+  const totalChangeText = useMemo(() => {
+    if (totalPercentChange === null) return "No data";
+
+    return `${totalDifference >= 0 ? "+" : ""}${totalDifference.toFixed(2)} kWh • ${totalDifference >= 0 ? "+" : ""}${totalPercentChange.toFixed(1)}%`;
+  }, [totalDifference, totalPercentChange]);
+
+  const totalChangeColor = useMemo(() => {
+    if (totalPercentChange === null) return "text-gray-600";
+    if (totalDifference > 0) return "text-red-600";
+    if (totalDifference < 0) return "text-green-600";
+    return "text-gray-600";
+  }, [totalDifference, totalPercentChange]);
+
   return (
     <>
       <View className='flex flex-row justify-between items-center py-3 px-5 border border-border rounded-lg'>
@@ -88,7 +116,9 @@ export default function AreaChartBottomSheet() {
         </View>
         <View className='items-end'>
           <Text className='text-sm font-medium'>{numericTotalEnergy.toFixed(2)} kWh</Text>
-          <Text className='text-[10px] text-red-600'>({lowest.value})</Text>
+          <Text className={`text-[10px] ${totalChangeColor}`}>
+            {totalChangeText}
+          </Text>
         </View>
       </View>
 
