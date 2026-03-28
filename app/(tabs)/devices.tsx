@@ -68,7 +68,8 @@ function formatDuration(totalSeconds: number) {
   const safe = Math.max(0, Math.floor(totalSeconds || 0));
   const hours = Math.floor(safe / 3600);
   const minutes = Math.floor((safe % 3600) / 60);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+  return `${String(hours).padStart(2, '0')}H ${String(minutes).padStart(2, '0')}M`;
 }
 
 function getPhilippineDateString() {
@@ -306,6 +307,28 @@ export default function DevicesTabScreen() {
 
   return (
     <>
+      {confirmedDate === getPhilippineDateString() ? (
+        <Pressable
+          className="self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10"
+          onPress={() => setCalendarModalOpen(true)}
+        >
+          <Text className="text-sm font-light">Today</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          className="self-end absolute -top-12 right-6 bg-green-600 rounded-full px-6 py-1 z-10"
+          onPress={() => setCalendarModalOpen(true)}
+        >
+          <Text className="text-sm font-light">
+            {new Date(confirmedDate).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </Text>
+        </Pressable>
+      )}
+
       <View className="flex-1 px-4">
         <View className="flex flex-row justify-between items-center">
           <Text className="text-blue-400 text-5xl font-semibold">04</Text>
