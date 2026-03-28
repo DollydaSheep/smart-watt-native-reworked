@@ -7,6 +7,17 @@ export type ChartPoint = {
   y: number | null;
 };
 
+export type ApplianceDailyStat = {
+  reading_date: string;
+  appliance_label: string;
+  total_energy_kwh: number;
+  total_duration_sec: number;
+  hourly_energy_kwh_profile: number[];
+  hourly_duration_sec_profile: number[];
+  total_nilm_event_count: number;
+  total_manual_app_count: number;
+};
+
 type StatsContextType = {
   baselinePower: number | null;
   totalEnergy: number | null;
@@ -14,6 +25,8 @@ type StatsContextType = {
   selectedDate: string | null;
   mode: StatsMode;
   chartSeries: ChartPoint[];
+  applianceDailyStats: ApplianceDailyStat[];
+  applianceDailyStatsLoading: boolean;
 
   setBaselinePower: (v: number) => void;
   setTotalEnergy: (v: number) => void;
@@ -21,6 +34,8 @@ type StatsContextType = {
   setSelectedDate: (date: string | null) => void;
   setMode: (mode: StatsMode) => void;
   setChartSeries: (series: ChartPoint[]) => void;
+  setApplianceDailyStats: (stats: ApplianceDailyStat[]) => void;
+  setApplianceDailyStatsLoading: (loading: boolean) => void;
 };
 
 const StatsContext = createContext<StatsContextType | null>(null);
@@ -34,6 +49,8 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
   const [mode, setMode] = useState<StatsMode>("daily");
   const [chartSeries, setChartSeries] = useState<ChartPoint[]>([]);
+  const [applianceDailyStats, setApplianceDailyStats] = useState<ApplianceDailyStat[]>([]);
+  const [applianceDailyStatsLoading, setApplianceDailyStatsLoading] = useState(false);
 
   return (
     <StatsContext.Provider
@@ -44,12 +61,16 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
         selectedDate,
         mode,
         chartSeries,
+        applianceDailyStats,
+        applianceDailyStatsLoading,
         setBaselinePower,
         setTotalEnergy,
         setPreviousTotalEnergy,
         setSelectedDate,
         setMode,
         setChartSeries,
+        setApplianceDailyStats,
+        setApplianceDailyStatsLoading,
       }}
     >
       {children}

@@ -1,7 +1,16 @@
 import { Stack } from "expo-router";
 import { Dimensions, Pressable, ScrollView, TouchableOpacity, View } from "react-native";
 import { Text } from '@/components/ui/text';
-import { EllipsisVertical, LayoutPanelLeft, Microwave, Share2, Trash2 } from "lucide-react-native";
+import {
+  EllipsisVertical,
+  LayoutPanelLeft,
+  Microwave,
+  Monitor,
+  Share2,
+  Trash2,
+  Tv,
+  WashingMachine,
+} from "lucide-react-native";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Animated, {
@@ -54,6 +63,28 @@ export default function HistoryScreen() {
     setSelectedItem(item);
     setSheetOpen(true);
     sheetRef.current?.expand();
+  }, []);
+
+  const getApplianceIcon = useCallback((applianceLabel?: string) => {
+    const name = (applianceLabel ?? "").toLowerCase().trim();
+
+    if (name.includes("tv") || name.includes("television")) return Tv;
+    if (name.includes("pc") || name.includes("computer") || name.includes("desktop")) return Monitor;
+    if (name.includes("washing machine") || name.includes("washer")) return WashingMachine;
+    if (name.includes("rice cooker")) return Microwave;
+
+    return Microwave;
+  }, []);
+
+  const getApplianceIconColor = useCallback((applianceLabel?: string) => {
+    const name = (applianceLabel ?? "").toLowerCase().trim();
+
+    if (name.includes("tv") || name.includes("television")) return "#8b5cf6"; // violet-500
+    if (name.includes("pc") || name.includes("computer") || name.includes("desktop")) return "#60a5fa"; // blue-400
+    if (name.includes("washing machine") || name.includes("washer")) return "#4ade80"; // green-400
+    if (name.includes("rice cooker")) return "#facc15"; // yellow-400
+
+    return "#ffffff";
   }, []);
 
   const blur = useSharedValue(0);
@@ -311,46 +342,50 @@ export default function HistoryScreen() {
                     <Text className="text-xl text-green-500 mb-4">{selectedGroup}</Text>
 
                     <View className="p-2 gap-6 pb-6">
-                      {groups[selectedGroup].map((n) => (
-                        <View key={n.id} className="flex flex-row justify-between items-center">
-                          <View className="flex flex-row items-center gap-3 flex-1">
-                            <View className="px-3 py-2 bg-gray-800 rounded-lg">
-                              <Microwave color={"#fff"} size={36} />
-                            </View>
+                      {groups[selectedGroup].map((n) => {
+                        const ApplianceIcon = getApplianceIcon(n.appliance);
 
-                            <View className="gap-1 flex-1">
-                              <View className="flex-row items-center gap-2">
-                                <Text className="text-sm font-medium flex-1">{n.message}</Text>
-                                <Text
-                                  className={`text-xs font-semibold ${
-                                    n.deltaValue > 0 ? "text-green-500" : "text-red-500"
-                                  }`}
-                                >
-                                  {n.deltaText}
-                                </Text>
+                        return (
+                          <View key={n.id} className="flex flex-row justify-between items-center">
+                            <View className="flex flex-row items-center gap-3 flex-1">
+                              <View className="px-3 py-2 bg-gray-800 rounded-lg">
+                                <ApplianceIcon color={getApplianceIconColor(n.appliance)} size={36} />
                               </View>
 
-                              <Text className="text-[10px] text-gray-600">
-                                {new Date(n.time).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  hour12: true
-                                })}
-                                {" | "}
-                                {new Date(n.time).toLocaleDateString([], {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric"
-                                })}
-                              </Text>
-                            </View>
-                          </View>
+                              <View className="gap-1 flex-1">
+                                <View className="flex-row items-center gap-2">
+                                  <Text className="text-sm font-medium flex-1">{n.message}</Text>
+                                  <Text
+                                    className={`text-xs font-semibold ${
+                                      n.deltaValue > 0 ? "text-green-500" : "text-red-500"
+                                    }`}
+                                  >
+                                    {n.deltaText}
+                                  </Text>
+                                </View>
 
-                          <Pressable onPress={() => openSheet(n)}>
-                            <EllipsisVertical color={"#fff"} />
-                          </Pressable>
-                        </View>
-                      ))}
+                                <Text className="text-[10px] text-gray-600">
+                                  {new Date(n.time).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true
+                                  })}
+                                  {" | "}
+                                  {new Date(n.time).toLocaleDateString([], {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric"
+                                  })}
+                                </Text>
+                              </View>
+                            </View>
+
+                            <Pressable onPress={() => openSheet(n)}>
+                              <EllipsisVertical color={"#fff"} />
+                            </Pressable>
+                          </View>
+                        );
+                      })}
                     </View>
 
                     {hasMore && (
@@ -383,7 +418,18 @@ export default function HistoryScreen() {
         >
           <View className="px-6 py-4">
             <View className="flex-row items-center mb-3">
-              <View className="bg-green-600 w-10 h-10 rounded-md mr-3" />
+              <View className="bg-gray-800 w-14 h-14 rounded-md mr-3 items-center justify-center">
+                {selectedItem ? (() => {
+                  const ApplianceIcon = getApplianceIcon(selectedItem.appliance);
+                  return (
+                    <ApplianceIcon
+                      color={getApplianceIconColor(selectedItem.appliance)}
+                      size={28}
+                    />
+                  );
+                })() : null}
+              </View>
+
               <View className="flex-1">
                 <Text className="text-white text-lg">
                   {selectedItem?.message ?? "No item selected"}
