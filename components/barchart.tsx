@@ -1,5 +1,4 @@
-// DailyPeaksBarChart.tsx
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import {
   VictoryBar,
@@ -11,39 +10,131 @@ import {
 } from "victory-native";
 import { Defs, LinearGradient, Stop } from "react-native-svg";
 import { Text } from "@/components/ui/text";
+import { useStats } from "@/lib/statsContext";
+
+type HourlyPoint = {
+  x: string;
+  y: number;
+};
+
+type ApiDataItem = {
+  label?: string;
+  start_hour?: string;
+  end_hour?: string;
+  energy_kwh?: number;
+  avg_power_w?: Record<string, number | null | undefined> | null;
+};
+
+type ApiPeriodSummary = {
+  date?: string;
+  total_energy_kwh?: number;
+  avg_power_w?: number;
+  avg_voltage?: number;
+  avg_current?: number;
+  data?: ApiDataItem[];
+  timezone?: string;
+};
+
+type ApiResponse = {
+  current?: ApiPeriodSummary;
+  previous?: ApiPeriodSummary;
+};
+
+const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
+
+const formatHourLabel = (hour: string) => {
+  const [rawHour] = hour.split(":");
+  const hourNum = Number(rawHour);
+
+  if (!Number.isFinite(hourNum)) return hour;
+
+  const suffix = hourNum >= 12 ? "PM" : "AM";
+  const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+
+  return `${displayHour}${suffix}`;
+};
 
 export default function DailyPeaksBarChart() {
-  // Example 24-hour data — replace with live or dynamic values
-  const hourlyData = [
-    { x: "12 AM", y: 120 },
-    { x: "1 AM", y: 100 },
-    { x: "2 AM", y: 90 },
-    { x: "3 AM", y: 80 },
-    { x: "4 AM", y: 75 },
-    { x: "5 AM", y: 90 },
-    { x: "6 AM", y: 150 },
-    { x: "7 AM", y: 300 },
-    { x: "8 AM", y: 350 },
-    { x: "9 AM", y: 280 },
-    { x: "10 AM", y: 240 },
-    { x: "11 AM", y: 200 },
-    { x: "12 PM", y: 220 },
-    { x: "1 PM", y: 250 },
-    { x: "2 PM", y: 290 },
-    { x: "3 PM", y: 330 },
-    { x: "4 PM", y: 380 },
-    { x: "5 PM", y: 420 },
-    { x: "6 PM", y: 460 },
-    { x: "7 PM", y: 500 },
-    { x: "8 PM", y: 470 },
-    { x: "9 PM", y: 380 },
-    { x: "10 PM", y: 260 },
-    { x: "11 PM", y: 180 },
-  ];
+  const { selectedDate, setChartSeries } = useStats();
+  const [hourlyData, setHourlyData] = useState<HourlyPoint[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Determine top 3 peaks for highlighting
-  const sorted = [...hourlyData].sort((a, b) => b.y - a.y);
-  const topPeaks = new Set(sorted.slice(0, 3).map((d) => d.x));
+  useEffect(() => {
+    if (!selectedDate) {
+      setHourlyData([]);
+      setChartSeries([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchHourlyAveragePower = async () => {
+      try {
+        setLoading(true);
+
+        const res = await fetch(
+          `${API_BASE}/power/daily?date=${selectedDate}&tz=Asia/Manila`,
+          { signal: controller.signal }
+        );
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const json: ApiResponse = await res.json();
+        const rawData = Array.isArray(json.current?.data) ? json.current.data : [];
+
+        const flattened: HourlyPoint[] = rawData
+          .flatMap((item) =>
+            Object.entries(item.avg_power_w ?? {}).map(([hour, value]) => ({
+              x: formatHourLabel(hour),
+              rawHour: hour,
+              y: Number(value),
+            }))
+          )
+          .filter(
+            (item) =>
+              typeof item.x === "string" &&
+              item.x.length > 0 &&
+              Number.isFinite(item.y)
+          )
+          .sort((a, b) => a.rawHour.localeCompare(b.rawHour))
+          .map(({ x, y }) => ({
+            x,
+            y: Number(y.toFixed(2)),
+          }));
+
+        setHourlyData(flattened);
+        setChartSeries(flattened);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("Failed to fetch hourly average power:", err);
+        setHourlyData([]);
+        setChartSeries([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchHourlyAveragePower();
+
+    return () => controller.abort();
+  }, [selectedDate, setChartSeries]);
+
+  const topPeaks = useMemo(() => {
+    const sorted = [...hourlyData].sort((a, b) => b.y - a.y);
+    return new Set(sorted.slice(0, 3).map((d) => d.x));
+  }, [hourlyData]);
+
+  const maxY = useMemo(() => {
+    if (!hourlyData.length) return 100;
+    const max = Math.max(...hourlyData.map((d) => d.y));
+    return max > 0 ? Math.ceil(max * 1.15) : 100;
+  }, [hourlyData]);
+
+  const hasData = hourlyData.length > 0;
 
   return (
     <View
@@ -54,72 +145,93 @@ export default function DailyPeaksBarChart() {
         paddingHorizontal: 2,
       }}
     >
+      {loading && (
+        <Text className="text-center text-xs text-gray-500 py-2">
+          Loading...
+        </Text>
+      )}
 
-      <VictoryChart
-        theme={VictoryTheme.material}
-        padding={{ top: 10, bottom: 100, left: 50, right: 20 }}
-        domainPadding={{ x: [10, 10], y: [0, 0] }}
-        containerComponent={
-          <VictoryVoronoiContainer
-            labels={({ datum }) => `${datum.x}\n${datum.y} W`}
-            labelComponent={
-              <VictoryTooltip
-                flyoutStyle={{
-                  stroke: "#333",
-                  fill: "#111",
-                }}
-                style={{ fill: "#fff", fontSize: 10 }}
-              />
-            }
+      {!loading && !hasData && (
+        <View className="py-10">
+          <Text className="text-center text-sm text-gray-500">
+            No power data available
+          </Text>
+        </View>
+      )}
+
+      {hasData && (
+        <VictoryChart
+          theme={VictoryTheme.material}
+          domain={{ y: [0, maxY] }}
+          padding={{ top: 10, bottom: 100, left: 50, right: 20 }}
+          domainPadding={{ x: [8, 8], y: [0, 0] }}
+          containerComponent={
+            <VictoryVoronoiContainer
+              labels={({ datum }) =>
+                datum && Number.isFinite(datum.y)
+                  ? `${datum.x}\n${datum.y.toFixed(0)} W`
+                  : ""
+              }
+              labelComponent={
+                <VictoryTooltip
+                  flyoutStyle={{
+                    stroke: "#333",
+                    fill: "#111",
+                  }}
+                  style={{ fill: "#fff", fontSize: 10 }}
+                />
+              }
+            />
+          }
+        >
+          <Defs>
+            <LinearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#00ff99" stopOpacity="0.8" />
+              <Stop offset="100%" stopColor="#00ff99" stopOpacity="0.2" />
+            </LinearGradient>
+          </Defs>
+
+          <VictoryAxis
+            style={{
+              axis: { stroke: "#333" },
+              tickLabels: {
+                fill: "#aaa",
+                fontSize: 8,
+                angle: 90,
+                padding: 12,
+              },
+              grid: { stroke: "none" },
+            }}
           />
-        }
-      >
-        {/* Gradient Definition */}
-        <Defs>
-          <LinearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="#00ff99" stopOpacity="0.8" />
-            <Stop offset="100%" stopColor="#00ff99" stopOpacity="0.2" />
-          </LinearGradient>
-        </Defs>
 
-        {/* Axes */}
-        <VictoryAxis
-          style={{
-            axis: { stroke: "#333" },
-            tickLabels: {
-              fill: "#aaa",
-              fontSize: 8,
-              angle: 90,
-              padding: 12,
-            },
-            grid: { stroke: "none" },
-          }}
-        />
-        <VictoryAxis
-          dependentAxis
-          style={{
-            axis: { stroke: "#333" },
-            tickLabels: { fill: "#666", fontSize: 9 },
-            grid: { stroke: "#1a1a1a" },
-          }}
-        />
+          <VictoryAxis
+            dependentAxis
+            tickFormat={(t) => `${t}W`}
+            style={{
+              axis: { stroke: "#333" },
+              tickLabels: { fill: "#666", fontSize: 9 },
+              grid: { stroke: "#1a1a1a" },
+            }}
+          />
 
-        {/* Bars */}
-        <VictoryBar
-          data={hourlyData}
-          barWidth={10}
-          style={{
-            data: {
-              fill: ({ datum }) =>
-                topPeaks.has(datum.x) ? "#ff7a59" : "url(#barGradient)",
-              stroke: ({ datum }) =>
-                topPeaks.has(datum.x) ? "#ff9b70" : "transparent",
-              strokeWidth: ({ datum }) => (topPeaks.has(datum.x) ? 2 : 0),
-            },
-          }}
-          animate={{ duration: 800, easing: "quadInOut" }}
-        />
-      </VictoryChart>
+          <VictoryBar
+            data={hourlyData}
+            x="x"
+            y="y"
+            barWidth={8}
+            style={{
+              data: {
+                fill: ({ datum }) =>
+                  topPeaks.has(datum.x) ? "#f97316" : "url(#barGradient)",
+                stroke: ({ datum }) =>
+                  topPeaks.has(datum.x) ? "#fb923c" : "transparent",
+                strokeWidth: ({ datum }) => (topPeaks.has(datum.x) ? 2 : 0),
+              },
+            }}
+            animate={{ duration: 800, easing: "quadInOut" }}
+          />
+        </VictoryChart>
+      )}
     </View>
   );
 }

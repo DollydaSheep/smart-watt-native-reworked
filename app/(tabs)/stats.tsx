@@ -89,31 +89,27 @@ export default function StatsTabScreen(){
   return(
     <>
       <View className='flex-1 items-center p-4'> 
-        {carouselIndex === 0 ? (
+        {confirmedDate === today ? (
+          <Pressable className='self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10'
+            onPress={()=>setCalendarModalOpen(true)}
+          >
+            <Text className='text-sm font-light'>Today</Text>
+          </Pressable>
+        ) : (
           <>
-            {confirmedDate === today ? (
-              <Pressable className='self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10'
-                onPress={()=>setCalendarModalOpen(true)}
-              >
-                <Text className='text-sm font-light'>Today</Text>
-              </Pressable>
-            ) : (
-              <>
-                <Pressable className='self-end absolute -top-12 right-6 bg-green-600 rounded-full px-6 py-1 z-10'
-                  onPress={()=>setCalendarModalOpen(true)}
-                >
-                  <Text className='text-sm font-light'>
-                    {new Date(confirmedDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </Text>
-                </Pressable>
-              </>
-            )}
+            <Pressable className='self-end absolute -top-12 right-6 bg-green-600 rounded-full px-6 py-1 z-10'
+              onPress={()=>setCalendarModalOpen(true)}
+            >
+              <Text className='text-sm font-light'>
+                {new Date(confirmedDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+            </Pressable>
           </>
-        ): null}
+        )}
         <Animated.View style={[animatedStyle]} className="-mt-6">
           <ChartCarouselComponent carouselIndex={carouselIndex} setCarouselIndex={setCarouselIndex} />
         </Animated.View>
@@ -152,25 +148,23 @@ export default function StatsTabScreen(){
             </View>
           </BottomSheetScrollView>
         </BottomSheet>
-        {carouselIndex === 0 && (
-          <Modal
-            transparent={true}
-            visible={calendarModalOpen}
-            animationType="fade"
-          >
-            <View className='flex-1 bg-background/70 items-center justify-center'>
-              <CalendarComponent  
-                initialDate={confirmedDate}
-                setCalendarModalOpen={(open) => setCalendarModalOpen(open)}
-                onConfirm={(date, iso) => {
-                  setConfirmedDate(date);
-                  setSelectedDate(date);
-                  console.log("confirmed:", date, iso);
-                }}
-              />
-            </View>
-          </Modal>
-        )}
+        <Modal
+          transparent={true}
+          visible={calendarModalOpen}
+          animationType="fade"
+        >
+          <View className='flex-1 bg-background/70 items-center justify-center'>
+            <CalendarComponent  
+              initialDate={confirmedDate}
+              setCalendarModalOpen={(open) => setCalendarModalOpen(open)}
+              onConfirm={(date, iso) => {
+                setConfirmedDate(date);
+                setSelectedDate(date);
+                console.log("confirmed:", date, iso);
+              }}
+            />
+          </View>
+        </Modal>
       </View>
     </>
   )
