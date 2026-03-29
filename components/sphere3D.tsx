@@ -33,14 +33,85 @@ import { useSmartWatt } from '@/lib/context';
 // ]
 
 type EnergySphereProps = {
-  devices: Device[];
+  appliances: Appliance[];
   totalUsage: number;
   powerLimit: number;
 };
 
 const NEAR_LIMIT_THRESHOLD = 90;
 
-function PowerLimiter({ totalUsage, powerLimit, devices }: { totalUsage: number; powerLimit: number; devices: Device[] }) {
+export type Appliance = Device & {
+  label?: string;
+  appliance_label?: string;
+  matched_state?: number;
+  matched_state_w?: number;
+};
+
+const APPLIANCE_COLOR_MAP: Record<string, string> = {
+  'personal computer': '#3b82f6',
+  'pc': '#3b82f6',
+  'computer': '#3b82f6',
+  'television': '#8b5cf6',
+  'tv': '#8b5cf6',
+  'washing machine': '#10b981',
+  'washer': '#10b981',
+  'rice cooker': '#f59e0b',
+};
+
+const normalizeApplianceLabel = (value: unknown) => {
+  if (typeof value !== 'string') return '';
+  return value.trim().toLowerCase();
+};
+
+const resolveApplianceColor = (appliance: any) => {
+  const direct = typeof appliance?.color === 'string' ? appliance.color : '';
+  if (direct) return direct;
+
+  const candidates = [
+    normalizeApplianceLabel(appliance?.name),
+    normalizeApplianceLabel(appliance?.label),
+    normalizeApplianceLabel(appliance?.appliance_label),
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    if (APPLIANCE_COLOR_MAP[c]) return APPLIANCE_COLOR_MAP[c];
+  }
+
+  return '#10b981';
+};
+
+const getApplianceUsageValue = (appliance: Appliance) => {
+  const matchedW = typeof appliance.matched_state_w === 'number' ? appliance.matched_state_w : NaN;
+  if (Number.isFinite(matchedW)) return matchedW;
+
+  const matched = typeof appliance.matched_state === 'number' ? appliance.matched_state : NaN;
+  if (Number.isFinite(matched)) return matched;
+
+  const base = typeof appliance.basePower === 'number' ? appliance.basePower : NaN;
+  if (Number.isFinite(base)) return base;
+
+  return NaN;
+};
+
+const getApplianceUsagePercentage = (
+  appliance: Appliance,
+  totalUsage: number,
+  totalApplianceUsageValue: number
+) => {
+  const value = getApplianceUsageValue(appliance);
+
+  if (Number.isFinite(value) && totalApplianceUsageValue > 0) {
+    return (value / totalApplianceUsageValue) * 100;
+  }
+
+  if (typeof appliance.basePower === 'number' && Number.isFinite(appliance.basePower) && totalUsage > 0) {
+    return (appliance.basePower / totalUsage) * 100;
+  }
+
+  return typeof appliance.percentage === 'number' ? appliance.percentage : 0;
+};
+
+function PowerLimiter({ totalUsage, powerLimit, appliances }: { totalUsage: number; powerLimit: number; appliances: Appliance[] }) {
   const { setAnomalyLevel } = useSmartWatt();
 
   const particlesRef = useRef<THREE.Points | null>(null);
@@ -56,12 +127,6 @@ function PowerLimiter({ totalUsage, powerLimit, devices }: { totalUsage: number;
   const usagePercentage = powerLimit > 0 ? (totalUsage / powerLimit) * 100 : 0;
   const isOverLimit = usagePercentage >= 100;
   const isNearLimit = usagePercentage >= NEAR_LIMIT_THRESHOLD;
-
-  const highestUsageDeviceColor = useMemo(() => {
-    if (!devices || devices.length === 0) return '#10b981';
-    const highest = devices.reduce((acc, cur) => (cur.percentage > acc.percentage ? cur : acc), devices[0]);
-    return highest?.color ?? '#10b981';
-  }, [devices]);
 
   const particleState = useRef<{
     positions: Float32Array;
@@ -114,10 +179,10 @@ function PowerLimiter({ totalUsage, powerLimit, devices }: { totalUsage: number;
       targetColorRef.current.set('#f59e0b');
       setAnomalyLevel('warning');
     } else {
-      targetColorRef.current.set(highestUsageDeviceColor);
+      targetColorRef.current.set('#10b981');
       setAnomalyLevel('normal');
     }
-  }, [highestUsageDeviceColor, isNearLimit, isOverLimit, setAnomalyLevel]);
+  }, [isNearLimit, isOverLimit, setAnomalyLevel]);
 
   const getPhysicsConstants = (usage: number) => {
     if (usage >= 100) {
@@ -368,13 +433,13 @@ function SmallSphere({
 }
 
 function EnergyCore({ totalUsage, powerLimit, devices }: { totalUsage: number; powerLimit: number; devices: Device[] }) {
-  return <PowerLimiter totalUsage={totalUsage} powerLimit={powerLimit} devices={devices} />;
+  return <PowerLimiter totalUsage={totalUsage} powerLimit={powerLimit} appliances={devices} />;
 }
 
 const getSphereSize = (percentage: number) => {
   // Exponential scaling for more dramatic size differences
   const normalizedPercentage = percentage / 100;
-  return 0.1 + Math.pow(normalizedPercentage, 0.7) * 0.8; // Size between 0.1 and 0.9 with exponential curve
+  return 0.1 + Math.pow(normalizedPercentage, 0.7) * 0.5; // Size between 0.1 and 0.9 with exponential curve
 };
 
 // Calculate radius from center - devices stick to limiter edge with subtle variations
@@ -382,11 +447,18 @@ const getRadiusFromCenter = (percentage: number) => {
   const normalizedPercentage = percentage / 100;
   // Base radius at limiter edge (1.0) with subtle proximity effect
   const proximityVariation = normalizedPercentage * 0.15; // Small variation for higher usage
-  return 1.0 - proximityVariation; // Radius between 0.85 and 1.0 (staying close to limiter edge)
+  return 1.1 - proximityVariation; // Radius between 0.85 and 1.0 (staying close to limiter edge)
 };
 
-function OrbitingGroup({ devices, totalUsage, powerLimit }: EnergySphereProps) {
+function OrbitingGroup({ appliances, totalUsage, powerLimit }: EnergySphereProps) {
   const orbitGroupRef = useRef<THREE.Group>(null);
+
+  const totalApplianceUsageValue = useMemo(() => {
+    return appliances.reduce((sum, appliance) => {
+      const v = getApplianceUsageValue(appliance);
+      return sum + (Number.isFinite(v) ? v : 0);
+    }, 0);
+  }, [appliances]);
 
   const usagePercentage = powerLimit > 0 ? (totalUsage / powerLimit) * 100 : 0;
   const isOverLimit = usagePercentage >= 100;
@@ -400,15 +472,17 @@ function OrbitingGroup({ devices, totalUsage, powerLimit }: EnergySphereProps) {
 
   return (
       <group ref={orbitGroupRef}>
-        <EnergyCore devices={devices} totalUsage={totalUsage} powerLimit={powerLimit} />
-        {devices.map((device, index) => {
-          const angle = (index / devices.length) * Math.PI * 2;
-          const radius = getRadiusFromCenter(device.percentage);
+        <EnergyCore devices={appliances} totalUsage={totalUsage} powerLimit={powerLimit} />
+        {appliances.map((device, index) => {
+          const angle = (index / appliances.length) * Math.PI * 2;
+          const usagePercentage = getApplianceUsagePercentage(device, totalUsage, totalApplianceUsageValue);
+          const radius = getRadiusFromCenter(usagePercentage);
           const x = Math.cos(angle) * radius;
           const z = Math.sin(angle) * radius;
-          const size = getSphereSize(device.percentage);
+          const size = getSphereSize(usagePercentage);
 
-          const displayColor = isOverLimit ? '#ef4444' : isNearLimit ? '#f59e0b' : device.color;
+          const baseColor = resolveApplianceColor(device);
+          const displayColor = isOverLimit ? '#ef4444' : isNearLimit ? '#f59e0b' : baseColor;
 
           return (
             <SmallSphere
@@ -424,7 +498,7 @@ function OrbitingGroup({ devices, totalUsage, powerLimit }: EnergySphereProps) {
 }
 
 
-export default function EnergySphere3D({ devices, totalUsage }: { devices: Device[]; totalUsage: number }) {
+export default function EnergySphere3D({ appliances, totalUsage }: { appliances: Appliance[]; totalUsage: number }) {
 
   const { powerLimit } = useSmartWatt();
 
@@ -438,7 +512,7 @@ export default function EnergySphere3D({ devices, totalUsage }: { devices: Devic
         <pointLight position={[3, 3, 3]} intensity={1} />
         <pointLight position={[-3, -3, -3]} intensity={0.3} />
         
-        <OrbitingGroup devices={devices} totalUsage={totalUsage} powerLimit={powerLimit} />
+        <OrbitingGroup appliances={appliances} totalUsage={totalUsage} powerLimit={powerLimit} />
 
         <OrbitControls
           makeDefault
