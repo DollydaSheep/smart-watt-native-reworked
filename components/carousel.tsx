@@ -74,7 +74,7 @@ export default function HeroCarouselComponent( { devices, totalUsage } : DeviceD
           index === 0 ? (
             <View className="self-center">
               {showSphere ? (
-                <EnergySphere3D devices={devices} totalUsage={totalUsage} />
+                <EnergySphere3D appliances={devices} totalUsage={totalUsage} />
               ) : (
                 <View style={{ width: 325, height: 325, alignItems: 'center', justifyContent: 'center' }}>
                   <Skeletoncircle size={280} />

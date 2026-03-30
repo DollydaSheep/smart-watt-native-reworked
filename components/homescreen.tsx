@@ -546,7 +546,7 @@ export default function HomeScreen() {
 
                         return (
                           <View key={n.id ?? index} className="flex flex-row p-4 gap-2">
-                            <View className="px-3 py-2 bg-gray-800 rounded-lg self-start">
+                            <View className="px-3 py-2 bg-gray-800/20 rounded-full self-start">
                               <ApplianceIcon
                                 color={getApplianceIconColor(n.appliance_label)}
                                 size={36}

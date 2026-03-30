@@ -3,9 +3,10 @@ import { useSmartWatt } from '@/lib/context';
 import { THEME } from '@/lib/theme';
 import { DeviceData } from '@/lib/types';
 import { Bell, ChevronDown, ChevronUp, CircleQuestionMark, HandHeart, Key, KeyRound, Monitor, Palette, Zap } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, View, Image, TextInput, Dimensions, Pressable } from 'react-native';
 import { io } from "socket.io-client";
+import { useFocusEffect } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,6 +14,8 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { Icon } from '@/components/ui/icon';
+
+const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
 
 export default function MenuTabScreen(){
 
@@ -22,6 +25,7 @@ export default function MenuTabScreen(){
 
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [usedTodayKwh, setUsedTodayKwh] = useState<number>(0);
 
   const screenWidth = Dimensions.get("window").width;
 
@@ -44,6 +48,29 @@ export default function MenuTabScreen(){
       socket.disconnect();
     };
   }, [socket]);
+
+  const fetchUsedToday = useCallback(async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const url = `${API_BASE}/power/daily?date=${today}&tz=Asia/Manila`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const json = (await res.json()) as any;
+      const total = Number(json?.current?.total_energy_kwh ?? 0);
+      setUsedTodayKwh(Number.isFinite(total) ? total : 0);
+    } catch (err) {
+      console.error('Failed to fetch used today:', err);
+      setUsedTodayKwh(0);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUsedToday();
+    }, [fetchUsedToday])
+  );
 
   useEffect(()=>{
     setStorePower(powerLimit.toString());
@@ -113,7 +140,7 @@ export default function MenuTabScreen(){
               </View>
               <View className='flex-1 py-2 px-4 bg-foreground/10 rounded-lg flex-row items-center justify-between'>
                 <View className=''>
-                  <Text className='text-2xl font-semibold'>{powerLimit.toFixed(1)} kW</Text>
+                  <Text className='text-2xl font-semibold'>{powerLimit.toFixed(1)} W</Text>
                   <Text className='text-xs text-foreground/40'>Power Limit</Text>
                 </View>
                 <Animated.View style={iconStyle}>
@@ -140,14 +167,14 @@ export default function MenuTabScreen(){
                     <Zap 
                       color={"#05df72"}
                       fill={"#05df72"}
-                      size={16}
+                      size={16} 
                     />
                     <View>
-                      <Text className='text-green-400 text-sm font-medium'>10.0kW</Text>
+                      <Text className='text-green-400 text-sm font-medium'>{usedTodayKwh.toFixed(2)} kWh</Text>
                       <Text className='text-[10px] text-foreground/40'>Used Today</Text>
                     </View>
                   </View>
-                  <Text className='font-medium text-sm my-2'>Power Limit (kW)</Text>
+                  <Text className='font-medium text-sm my-2'>Power Limit (W)</Text>
                   <View className='flex flex-row items-center gap-2'>
                     <TextInput 
                       className='px-4 py-4 flex-1 text-lg text-foreground bg-foreground/20 rounded-md'
