@@ -33,6 +33,7 @@ import { useSmartWatt } from '@/lib/context';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from '@/lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { useStats } from '@/lib/statsContext';
 
 const NOTIF_CACHE_KEY = "smartwatt_notifications";
 const LAST_NOTIF_SYNC_KEY = "smartwatt_last_notif_sync";
@@ -50,6 +51,7 @@ export default function HomeScreen() {
   const [bottomScrolled, setBottomScrolled] = useState(false);
 
   const [renderKey, setRenderKey] = useState(0);
+  const { triggerDevicesRefresh } = useStats();
 
   const { colorScheme } = useColorScheme();
 
@@ -409,11 +411,12 @@ export default function HomeScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRenderKey(prev => prev + 1);
+    triggerDevicesRefresh();
 
     setTimeout(() => {
       setRefreshing(false);
     }, 800);
-  }, []);
+  }, [triggerDevicesRefresh]);
 
   return (
     <>

@@ -27,6 +27,7 @@ type StatsContextType = {
   chartSeries: ChartPoint[];
   applianceDailyStats: ApplianceDailyStat[];
   applianceDailyStatsLoading: boolean;
+  refreshDevicesKey: number;
 
   setBaselinePower: (v: number) => void;
   setTotalEnergy: (v: number) => void;
@@ -36,6 +37,7 @@ type StatsContextType = {
   setChartSeries: (series: ChartPoint[]) => void;
   setApplianceDailyStats: (stats: ApplianceDailyStat[]) => void;
   setApplianceDailyStatsLoading: (loading: boolean) => void;
+  triggerDevicesRefresh: () => void;
 };
 
 const StatsContext = createContext<StatsContextType | null>(null);
@@ -51,6 +53,11 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
   const [chartSeries, setChartSeries] = useState<ChartPoint[]>([]);
   const [applianceDailyStats, setApplianceDailyStats] = useState<ApplianceDailyStat[]>([]);
   const [applianceDailyStatsLoading, setApplianceDailyStatsLoading] = useState(false);
+  const [refreshDevicesKey, setRefreshDevicesKey] = useState(0);
+
+  const triggerDevicesRefresh = () => {
+    setRefreshDevicesKey((prev) => prev + 1);
+  };
 
   return (
     <StatsContext.Provider
@@ -63,6 +70,7 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
         chartSeries,
         applianceDailyStats,
         applianceDailyStatsLoading,
+        refreshDevicesKey,
         setBaselinePower,
         setTotalEnergy,
         setPreviousTotalEnergy,
@@ -71,6 +79,7 @@ export function StatsProvider({ children }: { children: React.ReactNode }) {
         setChartSeries,
         setApplianceDailyStats,
         setApplianceDailyStatsLoading,
+        triggerDevicesRefresh,
       }}
     >
       {children}

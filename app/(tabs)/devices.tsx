@@ -224,6 +224,7 @@ export default function DevicesTabScreen() {
     setApplianceDailyStats,
     setApplianceDailyStatsLoading,
     setSelectedDate,
+    refreshDevicesKey,
   } = useStats();
 
   const fetchDailyContribution = async (day: string) => {
@@ -402,7 +403,7 @@ export default function DevicesTabScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [confirmedDate]);
+  }, [confirmedDate, refreshDevicesKey]);
 
   useEffect(() => {
     if (summaryModalOpen && summaryCarouselIndex === 1) {
