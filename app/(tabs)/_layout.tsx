@@ -81,7 +81,7 @@ export default function TabsLayout(){
   return(
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'}/>
-      <Pressable onPress={()=>{
+      {/* <Pressable onPress={()=>{
         router.push('/(tabs)/chatbot')
       }}
         style={{
@@ -91,8 +91,15 @@ export default function TabsLayout(){
         zIndex: 999,
         elevation: 10,
       }}
-      >
-        <View className="px-3.5 py-3 rounded-full self-center" >
+      > */}
+        <View className="px-3.5 py-3 rounded-full self-center" 
+          style={{
+          position: 'absolute',
+          bottom: (TAB_BAR_HEIGHT + (insets.bottom ?? 0)) - 20,
+          alignSelf: 'center',
+          zIndex: 999,
+          elevation: 10,
+        }}>
           {chatbotOpen ? (
             <Animated.View
               style={{
@@ -156,7 +163,7 @@ export default function TabsLayout(){
             </Animated.View>
           )}
         </View>
-      </Pressable>
+      {/* </Pressable> */}
       <Tabs screenOptions={{
         lazy: true,
         freezeOnBlur: true,

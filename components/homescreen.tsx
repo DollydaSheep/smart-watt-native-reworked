@@ -506,13 +506,7 @@ export default function HomeScreen() {
                     <TrendingUp color={"#00c951"} size={12} />
                   )}
                   <Text className={`text-[8px] ${anomalyLevel === 'critical' ? "text-red-500" : anomalyLevel === 'warning' ? "text-yellow-500" : "text-green-500"}`}>
-                    {anomalyLevel === 'warning' || anomalyLevel === 'critical' ? "Unoptimized" : "Optimized Efficiency"}
-                  </Text>
-                </View>
-                <View className='flex flex-row items-center gap-1'>
-                  <View className={`p-0.5 rounded-full ${anomalyLevel === 'critical' ? "bg-red-500" : anomalyLevel === 'warning' ? "bg-yellow-500" : "bg-green-500"}`}></View>
-                  <Text className={`text-[8px] ${anomalyLevel === 'critical' ? "text-red-500" : anomalyLevel === 'warning' ? "text-yellow-500" : "text-green-500"}`}>
-                    {anomalyLevel === 'warning' || anomalyLevel === 'critical' ? "1" : "0"} Anomalies
+                    {anomalyLevel === 'warning' ? "Elevated Load" : anomalyLevel === 'critical' ? "High Load" : "Normal Load"}
                   </Text>
                 </View>
               </View>

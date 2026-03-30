@@ -46,7 +46,7 @@ export default function HeroCarouselComponent( { devices, totalUsage } : DeviceD
 
   return(
     <>
-      <Pagination.Basic
+      {/* <Pagination.Basic
         progress={progress}
         data={data}
         dotStyle={{ 
@@ -59,8 +59,8 @@ export default function HeroCarouselComponent( { devices, totalUsage } : DeviceD
         }}
         containerStyle={{ gap: 5, marginTop: 10, alignSelf: "flex-end", marginRight: 40 }}
         onPress={onPressPagination}
-      />
-      <Carousel 
+      /> */}
+      {/* <Carousel 
         ref={ref}
         width={width}
         height={300}
@@ -82,7 +82,16 @@ export default function HeroCarouselComponent( { devices, totalUsage } : DeviceD
               )}
             </View>
           ) : index === 1 ? (<View className={`border-8 border-green-500 p-32 rounded-full self-center`}></View>): (<></>)}
-      />
+      /> */}
+      <View className="self-center">
+        {showSphere ? (
+          <EnergySphere3D appliances={devices} totalUsage={totalUsage} />
+        ) : (
+          <View style={{ width: 325, height: 325, alignItems: 'center', justifyContent: 'center' }}>
+            <Skeletoncircle size={280} />
+          </View>
+        )}
+      </View>
     </>
   )
 }
