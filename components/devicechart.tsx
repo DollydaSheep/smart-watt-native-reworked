@@ -104,9 +104,9 @@ export default function DeviceUsageBarChart({
       >
         <VictoryAxis
           dependentAxis
-          tickFormat={(t) => `${t.toFixed(2)}`}
+          tickFormat={(t) => `${t.toFixed(3)}`}
           style={{
-            tickLabels: { fill: "#ddd", fontSize: 10, fontWeight: "500" },
+            tickLabels: { fill: "#ddd", fontSize: 7, fontWeight: "500" },
             axis: { stroke: "transparent" },
             grid: { stroke: "#333", strokeDasharray: "4,4" },
           }}

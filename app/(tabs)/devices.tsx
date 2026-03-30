@@ -949,7 +949,7 @@ export default function DevicesTabScreen() {
                           style={{
                             labels: {
                               fill: '#fff',
-                              fontSize: 12,
+                              fontSize: 9,
                               fontWeight: 'bold',
                             },
                           }}
@@ -1042,7 +1042,7 @@ export default function DevicesTabScreen() {
                           />
                           <VictoryAxis
                             dependentAxis
-                            tickFormat={(t) => `${Number(t).toFixed(1)}`}
+                            tickFormat={(t) => `${Number(t).toFixed(3)}`}
                             style={{
                               tickLabels: { fill: '#ddd', fontSize: 10 },
                               axis: { stroke: 'transparent' },
