@@ -64,6 +64,13 @@ type WeeklyApplianceStat = {
   data: WeeklyApplianceDayPoint[];
 };
 
+type PendingToggleCommand = {
+  index: number;
+  deviceLabel: string;
+  action: 'ON' | 'OFF';
+  matchedStateW: number;
+} | null;
+
 const BAR_COLOR_BY_LABEL: Record<string, string> = {
   pc: 'bg-blue-400',
   television: 'bg-violet-500',
@@ -203,6 +210,9 @@ export default function DevicesTabScreen() {
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [confirmedDate, setConfirmedDate] = useState(getPhilippineDateString());
+  const [confirmToggleModalOpen, setConfirmToggleModalOpen] = useState(false);
+  const [pendingToggleCommand, setPendingToggleCommand] = useState<PendingToggleCommand>(null);
+  const [submittingToggle, setSubmittingToggle] = useState(false);
 
   const [modalColor, setModalColor] = useState<string>('');
   const [modalColorHex, setModalColorHex] = useState<string>('');
@@ -411,13 +421,45 @@ export default function DevicesTabScreen() {
     }
   }, [summaryModalOpen, summaryCarouselIndex, confirmedDate]);
 
-  const handleToggle = async (index: number) => {
+  const handleToggle = (index: number) => {
     const nextState = !isEnabled[index];
     const device = DEVICES[index];
     const action: 'ON' | 'OFF' = nextState ? 'ON' : 'OFF';
 
-    const ok = await insertApplianceCommand(device.label, action, device.matched_state_w);
-    if (!ok) return;
+    setPendingToggleCommand({
+      index,
+      deviceLabel: device.label,
+      action,
+      matchedStateW: device.matched_state_w,
+    });
+    setConfirmToggleModalOpen(true);
+  };
+
+  const handleConfirmToggle = async () => {
+    if (!pendingToggleCommand || submittingToggle) return;
+
+    try {
+      setSubmittingToggle(true);
+
+      const ok = await insertApplianceCommand(
+        pendingToggleCommand.deviceLabel,
+        pendingToggleCommand.action,
+        pendingToggleCommand.matchedStateW
+      );
+
+      if (!ok) return;
+
+      setConfirmToggleModalOpen(false);
+      setPendingToggleCommand(null);
+    } finally {
+      setSubmittingToggle(false);
+    }
+  };
+
+  const handleCancelToggle = () => {
+    if (submittingToggle) return;
+    setConfirmToggleModalOpen(false);
+    setPendingToggleCommand(null);
   };
 
   const handleModal = (
@@ -440,14 +482,25 @@ export default function DevicesTabScreen() {
   };
 
   const sortedContributionRows = [...dailyContributionRows].sort((a, b) => {
-    const aIndex = BAR_LABEL_ORDER.indexOf(a.label.toLowerCase());
-    const bIndex = BAR_LABEL_ORDER.indexOf(b.label.toLowerCase());
+    const aLabel = a.label.toLowerCase();
+    const bLabel = b.label.toLowerCase();
 
-    const safeA = aIndex === -1 ? 999 : aIndex;
-    const safeB = bIndex === -1 ? 999 : bIndex;
+    const aIsUnlabeled = aLabel === 'unlabeled';
+    const bIsUnlabeled = bLabel === 'unlabeled';
 
-    return safeA - safeB;
+    if (aIsUnlabeled && !bIsUnlabeled) return 1;
+    if (!aIsUnlabeled && bIsUnlabeled) return -1;
+
+    return b.percent - a.percent;
   });
+
+  const topContributionColor = useMemo(() => {
+    const topRow = sortedContributionRows.find(
+      (item) => item.label.toLowerCase() !== 'unlabeled'
+    );
+
+    return topRow ? getPieColor(topRow.label) : '#51a2ff';
+  }, [sortedContributionRows]);
 
   const pieChartData = useMemo(() => {
     return sortedContributionRows
@@ -609,7 +662,9 @@ export default function DevicesTabScreen() {
           }}
         >
           <View className="flex flex-row justify-between items-center">
-            <Text className="text-blue-400 text-5xl font-semibold">04</Text>
+            <Text className="text-5xl font-semibold" style={{ color: topContributionColor }}>
+              04
+            </Text>
             <View className="flex flex-row items-end">
               <Text className="text-5xl font-semibold">{totalDailyKwh.toFixed(2)}</Text>
               <Text className="text-3xl text-foreground/60 font-medium">kWh</Text>
@@ -1145,6 +1200,51 @@ export default function DevicesTabScreen() {
                   console.log('confirmed:', date, iso);
                 }}
               />
+            </View>
+          </Modal>
+
+          <Modal transparent visible={confirmToggleModalOpen} animationType="fade">
+            <View className="flex-1 bg-background/70 items-center justify-center px-6">
+              <View className="w-full max-w-md bg-[#141414] rounded-2xl p-5 border border-foreground/10">
+                <Text className="text-lg font-semibold mb-2">Confirm Action</Text>
+
+                <Text className="text-sm text-foreground/70 mb-5">
+                  {pendingToggleCommand
+                    ? `Are you sure you want to turn ${pendingToggleCommand.action === 'ON' ? 'on' : 'off'} ${formatApplianceLabel(
+                        pendingToggleCommand.deviceLabel
+                      )}?`
+                    : 'Are you sure you want to continue?'}
+                </Text>
+
+                <View className="flex-row gap-3">
+                  <Pressable
+                    onPress={handleCancelToggle}
+                    className="flex-1 py-3 rounded-xl bg-foreground/10 items-center "
+                  >
+                    <Text className="font-medium text-sm">Cancel</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleConfirmToggle}
+                    disabled={submittingToggle}
+                    className={`flex-1 py-3 rounded-xl items-center justify-center px-4 ${
+                      pendingToggleCommand?.action === 'ON' ? 'bg-green-600' : 'bg-red-600'
+                    } ${submittingToggle ? 'opacity-60' : 'opacity-100'}`}
+                  >
+                    <Text
+                      className="font-medium text-white text-sm"
+                      numberOfLines={1}
+                      
+                    >
+                      {submittingToggle
+                        ? 'Sending...'
+                        : pendingToggleCommand?.action === 'ON'
+                        ? 'Turn On'
+                        : 'Turn Off'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
           </Modal>
         </ScrollView>
