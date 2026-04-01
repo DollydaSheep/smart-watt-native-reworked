@@ -29,7 +29,7 @@ const SmartWattContext = createContext<SmartWattContextType | null>(null);
 // ----------------------------
 export function SmartWattProvider({ children }: ProviderProps) {
   const [anomalyLevel, setAnomalyLevel] = useState<AnomalyLevel>("normal");
-  const [powerLimit, setPowerLimit] = useState<number>(5); // default watts
+  const [powerLimit, setPowerLimit] = useState<number>(200);
 
   return (
     <SmartWattContext.Provider

@@ -8,6 +8,7 @@ import { KeyboardProvider, KeyboardAvoidingView } from "react-native-keyboard-co
 import { Animated, Easing } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
+import { useSmartWatt } from '@/lib/context';
 
 // Typing Animation Component
 function TypingText({ text, speed, onComplete }: { text: string; speed?: number; onComplete?: () => void }) {
@@ -48,6 +49,7 @@ type Message = {
 };
 
 export default function ChatBotTabScreen(){
+	const { anomalyLevel } = useSmartWatt();
 	const [messages, setMessages] = useState<Message[]>([
 		{ id: '1', text: "Hi! I'm Julius Ass. What can I help you with?", isUser: false }
 	]);
@@ -132,6 +134,12 @@ export default function ChatBotTabScreen(){
 		}, 100);
 	}, [messages, isAiTyping]);
 
+	const chadSource = anomalyLevel === 'critical'
+		? require('@/assets/images/ChadRed.png')
+		: anomalyLevel === 'warning'
+			? require('@/assets/images/ChadYellow.png')
+			: require('@/assets/images/ChadGreen.png');
+
 	return(
 		<KeyboardProvider>
 			<View className='flex-1'>
@@ -213,21 +221,7 @@ export default function ChatBotTabScreen(){
 								transform: [{ translateY: anim }],
 							}}
 						>
-							{/* <Image source={require('@/assets/images/ChadGreen.png')} className='self-end top-36'
-								style={{
-									width: 300,
-									height: 300,
-									resizeMode: 'contain',
-								}}
-							/> */}
-							{/* <Image source={require('@/assets/images/ChadYellow.png')} className='self-end top-32'
-								style={{
-									width: 300,
-									height: 300,
-									resizeMode: 'contain',
-								}}
-							/> */}
-							<Image source={require('@/assets/images/ChadRed.png')} className='self-end top-32'
+							<Image source={chadSource} className='self-end top-32'
 								style={{
 									width: 300,
 									height: 300,

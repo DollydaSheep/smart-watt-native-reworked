@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1014280363191",
+    "project_id": "smart-watt-8c5c4",
+    "storage_bucket": "smart-watt-8c5c4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014280363191:android:3907ad247dc65403cbc132",
+        "android_client_info": {
+          "package_name": "com.dollydasheep.smartwatt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8ptmxisW1UjqmqmHB9hHX-B02wQ4Pp10"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

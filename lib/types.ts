@@ -9,9 +9,11 @@ export type NotifData = {
   id: string;
   message: string;
   time: string;
-  type?: 'on' | 'off';
+  type?: "on" | "off";
   appliance_label?: string;
-}
+  delta_w?: number | null;
+  smoothed_delta_w?: number | null;
+};
 
 export type Device = {
   id: number;

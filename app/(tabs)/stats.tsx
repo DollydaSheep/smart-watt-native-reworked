@@ -19,7 +19,7 @@ import { useStats } from '@/lib/statsContext';
 
 export default function StatsTabScreen(){
 
-  const { selectedDate, setSelectedDate } = useStats();
+  const { selectedDate, setSelectedDate, mode } = useStats();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -30,12 +30,15 @@ export default function StatsTabScreen(){
 
   const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
+  useEffect(() => {
     setLoading(true);
-    setInterval(()=>{
+
+    const timer = setTimeout(() => {
       setLoading(false);
-    },1000)
-  },[selectedDate])
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [selectedDate, mode]);
 
   const blur = useSharedValue(0);
   
@@ -49,9 +52,6 @@ export default function StatsTabScreen(){
 
   const min = snapPoints[0];      // collapsed
   const max = snapPoints[1];  // fully open
-
-  console.log(min)
-  console.log(max)
   
   const animatedPosition = useSharedValue(0);
 
@@ -73,7 +73,6 @@ export default function StatsTabScreen(){
   useAnimatedReaction(
     () => animatedPosition.value,
     (pos) => {
-      console.log(animatedPosition.value)
       blur.value = interpolate(
         pos,
         [min, max],   // bottom → fully open (adjust to your screen height)
@@ -90,31 +89,27 @@ export default function StatsTabScreen(){
   return(
     <>
       <View className='flex-1 items-center p-4'> 
-        {carouselIndex === 0 ? (
+        {confirmedDate === today ? (
+          <Pressable className='self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10'
+            onPress={()=>setCalendarModalOpen(true)}
+          >
+            <Text className='text-sm font-light'>Today</Text>
+          </Pressable>
+        ) : (
           <>
-            {confirmedDate === today ? (
-              <Pressable className='self-end absolute -top-12 right-6 border border-foreground rounded-full px-6 py-1 z-10'
-                onPress={()=>setCalendarModalOpen(true)}
-              >
-                <Text className='text-sm font-light'>Today</Text>
-              </Pressable>
-            ) : (
-              <>
-                <Pressable className='self-end absolute -top-12 right-6 bg-green-600 rounded-full px-6 py-1 z-10'
-                  onPress={()=>setCalendarModalOpen(true)}
-                >
-                  <Text className='text-sm font-light'>
-                    {new Date(confirmedDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </Text>
-                </Pressable>
-              </>
-            )}
+            <Pressable className='self-end absolute -top-12 right-6 bg-green-600 rounded-full px-6 py-1 z-10'
+              onPress={()=>setCalendarModalOpen(true)}
+            >
+              <Text className='text-sm font-light'>
+                {new Date(confirmedDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+            </Pressable>
           </>
-        ): null}
+        )}
         <Animated.View style={[animatedStyle]} className="-mt-6">
           <ChartCarouselComponent carouselIndex={carouselIndex} setCarouselIndex={setCarouselIndex} />
         </Animated.View>
@@ -153,25 +148,23 @@ export default function StatsTabScreen(){
             </View>
           </BottomSheetScrollView>
         </BottomSheet>
-        {carouselIndex === 0 && (
-          <Modal
-            transparent={true}
-            visible={calendarModalOpen}
-            animationType="fade"
-          >
-            <View className='flex-1 bg-background/70 items-center justify-center'>
-              <CalendarComponent  
-                initialDate={confirmedDate}
-                setCalendarModalOpen={(open) => setCalendarModalOpen(open)}
-                onConfirm={(date, iso) => {
-                  setConfirmedDate(date);
-                  setSelectedDate(date);
-                  console.log("confirmed:", date, iso);
-                }}
-              />
-            </View>
-          </Modal>
-        )}
+        <Modal
+          transparent={true}
+          visible={calendarModalOpen}
+          animationType="fade"
+        >
+          <View className='flex-1 bg-background/70 items-center justify-center'>
+            <CalendarComponent  
+              initialDate={confirmedDate}
+              setCalendarModalOpen={(open) => setCalendarModalOpen(open)}
+              onConfirm={(date, iso) => {
+                setConfirmedDate(date);
+                setSelectedDate(date);
+                console.log("confirmed:", date, iso);
+              }}
+            />
+          </View>
+        </Modal>
       </View>
     </>
   )
