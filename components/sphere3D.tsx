@@ -486,7 +486,7 @@ function OrbitingGroup({ appliances, totalUsage, powerLimit }: EnergySphereProps
 
           return (
             <SmallSphere
-              key={device.id}
+              key={device.id ?? index}
               size={size}
               color={displayColor}
               position={[x, 0, z]}
@@ -503,7 +503,7 @@ export default function EnergySphere3D({ appliances, totalUsage }: { appliances:
   const { powerLimit } = useSmartWatt();
 
   return (
-    <View style={{ width: 325, height: 325, backgroundColor: 'transparent', borderRadius: 12 }}>
+    <View style={{ width: 355, height: 355, backgroundColor: 'transparent', borderRadius: 12 }}>
       <Canvas
         camera={{ position: [0, 0, 3], fov: 60 }}
       >

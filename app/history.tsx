@@ -348,7 +348,7 @@ export default function HistoryScreen() {
                         return (
                           <View key={n.id} className="flex flex-row justify-between items-center">
                             <View className="flex flex-row items-center gap-3 flex-1">
-                              <View className="px-3 py-2 bg-gray-800 rounded-lg">
+                              <View className="px-3 py-2 bg-gray-800/20 rounded-lg">
                                 <ApplianceIcon color={getApplianceIconColor(n.appliance)} size={36} />
                               </View>
 

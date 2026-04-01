@@ -2,113 +2,57 @@ import { Text } from '@/components/ui/text';
 import { useSmartWatt } from '@/lib/context';
 import { THEME } from '@/lib/theme';
 import { DeviceData } from '@/lib/types';
-import { Bell, ChevronDown, ChevronUp, CircleQuestionMark, HandHeart, Key, KeyRound, Monitor, Palette, Zap } from 'lucide-react-native';
+import { ChevronDown, Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, View, Image, TextInput, Dimensions, Pressable } from 'react-native';
 import { io } from "socket.io-client";
 import { useFocusEffect } from 'expo-router';
+import { Icon } from '@/components/ui/icon';
+
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing,
-} from "react-native-reanimated";
-import { Icon } from '@/components/ui/icon';
+  interpolate,
+} from 'react-native-reanimated';
 
 const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
 
 export default function MenuTabScreen(){
-
-  const { powerLimit, setPowerLimit } = useSmartWatt();
+  
+  const { anomalyLevel, powerLimit, setPowerLimit } = useSmartWatt();
 
   const [storePower, setStorePower] = useState('');
-
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [usedTodayKwh, setUsedTodayKwh] = useState<number>(0);
 
   const screenWidth = Dimensions.get("window").width;
-
   const progress = data ? data.totalUsage / powerLimit : 0;
   const barWidth = progress * screenWidth;
 
+  // 🔥 Dropdown animation
   const isOpen = useSharedValue(false);
 
-  const socket = useMemo(() => io("https://puisne-krish-uncommiseratively.ngrok-free.dev"), []);
-
-  useEffect(() => {
-
-    socket.on("mqtt-device-data", (msg: DeviceData) => {
-      console.log("Received mock data:", msg);
-      setData(msg);
-      setLoading(false);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [socket]);
-
-  const fetchUsedToday = useCallback(async () => {
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      const url = `${API_BASE}/power/daily?date=${today}&tz=Asia/Manila`;
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const json = (await res.json()) as any;
-      const total = Number(json?.current?.total_energy_kwh ?? 0);
-      setUsedTodayKwh(Number.isFinite(total) ? total : 0);
-    } catch (err) {
-      console.error('Failed to fetch used today:', err);
-      setUsedTodayKwh(0);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchUsedToday();
-    }, [fetchUsedToday])
-  );
-
-  useEffect(()=>{
-    setStorePower(powerLimit.toString());
-  },[powerLimit])
-
-  const commitPowerLimit = () => {
-    const parsed = parseFloat(storePower);
-    if (!isNaN(parsed) && parsed > 0) {
-      setPowerLimit(parsed);
-    } else {
-      setStorePower(powerLimit.toString());
-    }
-  };
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      maxHeight: withTiming(isOpen.value ? 220 : 0, {
-        duration: 420,
-        easing: Easing.bezier(0.22, 1, 0.36, 1), // smooth premium easing
-      }),
-      opacity: withTiming(isOpen.value ? 1 : 0, {
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-      }),
-      transform: [
-        {
-          translateY: withTiming(isOpen.value ? 0 : -8, {
-            duration: 420,
-            easing: Easing.bezier(0.22, 1, 0.36, 1),
-          }),
-        },
-      ],
-    };
-  });
-
-  const toggleDropdown = () => {
-    isOpen.value = !isOpen.value;
-  };
+  const animatedStyle = useAnimatedStyle(() => ({
+    maxHeight: withTiming(isOpen.value ? 220 : 0, {
+      duration: 420,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
+    }),
+    opacity: withTiming(isOpen.value ? 1 : 0, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+    }),
+    transform: [
+      {
+        translateY: withTiming(isOpen.value ? 0 : -8, {
+          duration: 420,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
+        }),
+      },
+    ],
+  }));
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [
@@ -121,145 +65,172 @@ export default function MenuTabScreen(){
     ],
   }));
 
-  return(
-    <>
-      <ScrollView>
-        <View className='flex-1'>
-          <View className='flex flex-row justify-center py-8 border-b border-border'>
-            <Text className='text-4xl font-semibold'>SmarT-WaTT</Text>
-          </View>
+  const toggleDropdown = () => {
+    isOpen.value = !isOpen.value;
+  };
 
-          <View className='flex flex-column items-center justify-center py-8 px-4 border-b border-border'>
-            
-            <Pressable className='flex flex-row items-center gap-4' onPress={toggleDropdown}>
-              <View className='p-4 self-center rounded-full bg-green-500'>
-                <Zap 
-                  color={"#fff"}
-                  fill={"#fff"}
-                />
-              </View>
-              <View className='flex-1 py-2 px-4 bg-foreground/10 rounded-lg flex-row items-center justify-between'>
-                <View className=''>
-                  <Text className='text-2xl font-semibold'>{powerLimit.toFixed(1)} W</Text>
-                  <Text className='text-xs text-foreground/40'>Power Limit</Text>
-                </View>
-                <Animated.View style={iconStyle}>
-                  <Icon
-                    as={ChevronDown}
-                    size={20}
-                    color={THEME.dark.foreground}
-                  />
-                </Animated.View>
-              </View>
-            </Pressable>
-            
+  // 🔥 Chad animation (Reanimated)
+  const chadAnim = useSharedValue(80);
 
-            <Animated.View style={[animatedStyle, { overflow: "hidden" }]} className='flex flex-row items-center gap-4 mt-2'>
-              <View className='p-4 self-center rounded-full bg-green-500 opacity-0'>
-                <Zap 
-                  color={"#fff"}
-                  fill={"#fff"}
-                />
-              </View>
-              <View className='flex-1 bg-foreground/10 rounded-lg'>
-                <View className='px-4 py-2'>
-                  <View className='flex flex-row items-center gap-2'>
-                    <Zap 
-                      color={"#05df72"}
-                      fill={"#05df72"}
-                      size={16} 
-                    />
-                    <View>
-                      <Text className='text-green-400 text-sm font-medium'>{usedTodayKwh.toFixed(2)} kWh</Text>
-                      <Text className='text-[10px] text-foreground/40'>Used Today</Text>
-                    </View>
-                  </View>
-                  <Text className='font-medium text-sm my-2'>Power Limit (W)</Text>
-                  <View className='flex flex-row items-center gap-2'>
-                    <TextInput 
-                      className='px-4 py-4 flex-1 text-lg text-foreground bg-foreground/20 rounded-md'
-                      style={{ minHeight: 45 }}
-                      value={storePower}
-                      onChangeText={(text) => {
-                        setStorePower(text);
-                      }}
-                      onSubmitEditing={commitPowerLimit}
-                      onEndEditing={commitPowerLimit}
-                      keyboardType="decimal-pad"
-                      returnKeyType="done"
-                      blurOnSubmit={true}
-                    />
-                    <Pressable onPress={commitPowerLimit} className='px-4 py-3 rounded-md bg-green-600'>
-                      <Text className='text-xs font-medium text-white'>Apply</Text>
-                    </Pressable>
-                  </View>
-                </View>
-                <View className='border-t border-foreground/20 my-2'></View>
-                <View className='p-4 pt-2'>
-                  <View className='flex flex-row justify-between mb-2'>
-                    <Text className='text-xs'>Usage</Text>
-                    <Text className='text-xs text-green-500'>{data ? ((data!.totalUsage/powerLimit) * 100).toFixed(2) : "0"}% of limit</Text>
-                  </View>
-                  <View className='relative h-2 bg-foreground rounded-full overflow-hidden'>
-                    <View className={`h-2 bg-green-500`} style={{width: barWidth }}></View>
-                  </View>
-                </View>
-              </View>
-            </Animated.View>
+  useFocusEffect(
+    useCallback(() => {
+      chadAnim.value = 80;
+      chadAnim.value = withTiming(0, {
+        duration: 750,
+        easing: Easing.out(Easing.cubic),
+      });
+    }, [])
+  );
 
-          </View>
+  const chadStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(chadAnim.value, [-40, 0, 50], [0, 1, 0]),
+    transform: [{ translateY: chadAnim.value }],
+  }));
 
-          <View className='p-8 flex flex-column gap-4'>
-            <View className='flex flex-row items-center gap-4'>
-              <Monitor 
-                color={THEME.dark.foreground}
-                size={32}
-              />
-              <Text className='text-base font-medium'>Device & Sensors</Text>
-            </View>
+  const chadSource =
+    anomalyLevel === 'critical'
+      ? require('@/assets/images/ChadRed.png')
+      : anomalyLevel === 'warning'
+      ? require('@/assets/images/ChadYellow.png')
+      : require('@/assets/images/ChadGreen.png');
 
-            <View className='flex flex-row items-center gap-4'>
-              <Bell 
-                color={THEME.dark.foreground}
-                size={32}
-              />
-              <Text className='text-base font-medium'>Notification</Text>
-            </View>
+  // 🔥 Socket (FIXED cleanup)
+  const socket = useMemo(() => io("https://puisne-krish-uncommiseratively.ngrok-free.dev"), []);
 
-            <View className='flex flex-row items-center gap-4'>
-              <Palette 
-                color={THEME.dark.foreground}
-                size={32}
-              />
-              <Text className='text-base font-medium'>App Preference</Text>
-            </View>
+  useEffect(() => {
+    socket.on("mqtt-device-data", (msg: DeviceData) => {
+      setData(msg);
+      setLoading(false);
+    });
 
-            <View className='flex flex-row items-center gap-4'>
-              <HandHeart 
-                color={THEME.dark.foreground}
-                size={32}
-              />
-              <Text className='text-base font-medium'>How to Use?</Text>
-            </View>
+    return () => {
+      socket.disconnect(); // ✅ FIXED
+    };
+  }, [socket]);
 
-            <View className='flex flex-row items-center gap-4'>
-              <KeyRound 
-                color={THEME.dark.foreground}
-                size={32}
-              />
-              <Text className='text-base font-medium'>Data & Privacy</Text>
-            </View>
+  // 🔥 Fetch usage
+  const fetchUsedToday = useCallback(async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const url = `${API_BASE}/power/daily?date=${today}&tz=Asia/Manila`;
 
-            <View className='flex flex-row items-center gap-4'>
-              <CircleQuestionMark 
-                color={THEME.dark.foreground}
-                size={32}
-              />
-              <Text className='text-base font-medium'>About</Text>
-            </View>
-          </View>
+      const res = await fetch(url);
+      if (!res.ok) throw new Error();
+
+      const json = await res.json();
+      const total = Number(json?.current?.total_energy_kwh ?? 0);
+      setUsedTodayKwh(Number.isFinite(total) ? total : 0);
+    } catch {
+      setUsedTodayKwh(0);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUsedToday();
+    }, [fetchUsedToday])
+  );
+
+  useEffect(() => {
+    setStorePower(powerLimit.toString());
+  }, [powerLimit]);
+
+  const commitPowerLimit = () => {
+    const parsed = parseFloat(storePower);
+    if (!isNaN(parsed) && parsed > 0) {
+      setPowerLimit(parsed);
+    } else {
+      setStorePower(powerLimit.toString());
+    }
+  };
+
+  return (
+    <ScrollView>
+      <View className='flex-1'>
+
+        {/* Header */}
+        <View className='flex flex-row justify-center py-8 border-b border-border'>
+          <Image
+            source={require('assets/images/smartwattname2.png')}
+            style={{ width: 250, height: 100 }}
+          />
         </View>
-      </ScrollView>
-    </>
-  )
+
+        {/* Power Section */}
+        <View className='items-center py-8 px-4 border-b border-border'>
+
+          <Pressable className='flex flex-row items-center gap-4' onPress={toggleDropdown}>
+            <View className='p-4 rounded-full bg-green-500'>
+              <Zap color="#fff" fill="#fff" />
+            </View>
+
+            <View className='flex-1 py-2 px-4 bg-foreground/10 rounded-lg flex-row items-center justify-between'>
+              <View>
+                <Text className='text-2xl font-semibold'>{powerLimit.toFixed(1)} W</Text>
+                <Text className='text-xs text-foreground/40'>Power Limit</Text>
+              </View>
+
+              <Animated.View style={iconStyle}>
+                <Icon as={ChevronDown} size={20} color={THEME.dark.foreground} />
+              </Animated.View>
+            </View>
+          </Pressable>
+
+          <Animated.View style={[animatedStyle, { overflow: "hidden" }]} className='flex flex-row items-center gap-4 mt-2'>
+            <View className='p-4 rounded-full opacity-0' />
+
+            <View className='flex-1 bg-foreground/10 rounded-lg'>
+              <View className='px-4 py-2'>
+                <Text className='text-green-400 text-sm font-medium'>
+                  {usedTodayKwh.toFixed(2)} kWh
+                </Text>
+
+                <Text className='text-[10px] text-foreground/40'>Used Today</Text>
+
+                <Text className='font-medium text-sm my-2'>Power Limit (W)</Text>
+
+                <View className='flex flex-row gap-2'>
+                  <TextInput
+                    className='px-4 py-2 flex-1 text-medium bg-white rounded-md'
+                    value={storePower}
+                    onChangeText={setStorePower}
+                    onSubmitEditing={commitPowerLimit}
+                    onEndEditing={commitPowerLimit}
+                    keyboardType="decimal-pad"
+                  />
+
+                  <Pressable onPress={commitPowerLimit} className='px-4 py-3 rounded-md bg-green-600'>
+                    <Text className='text-xs text-white'>Apply</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View className='p-4 pt-2'>
+                <View className='flex flex-row justify-between mb-2'>
+                  <Text className='text-xs'>Usage</Text>
+                  <Text className='text-xs text-green-500'>
+                    {data ? ((data!.totalUsage / powerLimit) * 100).toFixed(2) : "0"}% of limit
+                  </Text>
+                </View>
+
+                <View className='h-2 bg-foreground rounded-full overflow-hidden'>
+                  <View className='h-2 bg-green-500' style={{ width: barWidth }} />
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
+        </View>
+
+        {/* 🔥 Chad */}
+        <Animated.View style={[{ alignItems: 'flex-end', marginTop: 178 }, chadStyle]}>
+          <Image
+            source={chadSource }
+            style={{ width: 300, height: 300, resizeMode: 'contain' }}
+          />
+        </Animated.View>
+
+      </View>
+    </ScrollView>
+  );
 }

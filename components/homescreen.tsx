@@ -14,16 +14,19 @@ import {
   TrendingUp,
   Tv,
   WashingMachine,
+  Zap,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Dimensions, Image, type ImageStyle, Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, useAnimatedProps, useAnimatedReaction, Extrapolation, useDerivedValue } from 'react-native-reanimated';
+
+import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, useAnimatedProps, useAnimatedReaction, Extrapolation, useDerivedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { BlurView } from "expo-blur";
 import Svg, { Path } from 'react-native-svg';
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { THEME } from '@/lib/theme';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import HeroCarouselComponent from '@/components/carousel';
 import { io, Socket } from "socket.io-client";
 import EnergySphere3D from '@/components/sphere3D';
@@ -38,6 +41,67 @@ import { useStats } from '@/lib/statsContext';
 const NOTIF_CACHE_KEY = "smartwatt_notifications";
 const LAST_NOTIF_SYNC_KEY = "smartwatt_last_notif_sync";
 
+function formatDuration(totalSeconds: number) {
+  const safe = Math.max(0, Math.floor(totalSeconds || 0));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+
+  return `${String(hours).padStart(2, '0')}H ${String(minutes).padStart(2, '0')}M`;
+}
+
+function getPhilippineDateString() {
+  const now = new Date();
+  const phNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  return phNow.toISOString().slice(0, 10);
+}
+
+const PulsingDot = React.memo(({ color }: { color: string }) => {
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1.6, {
+        duration: 1200,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+  }, [pulse]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulse.value }],
+      opacity: 1,
+    };
+  });
+
+  return (
+    <View style={{ width: 12, height: 12, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={[
+          {
+            width: 12,
+            height: 12,
+            borderRadius: 9999,
+            backgroundColor: color,
+          },
+          animatedStyle,
+        ]}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: 8,
+          height: 8,
+          borderRadius: 9999,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+});
+
 export default function HomeScreen() {
   const { powerLimit, setPowerLimit } = useSmartWatt();
   const { anomalyLevel, setAnomalyLevel } = useSmartWatt();
@@ -51,7 +115,13 @@ export default function HomeScreen() {
   const [bottomScrolled, setBottomScrolled] = useState(false);
 
   const [renderKey, setRenderKey] = useState(0);
-  const { triggerDevicesRefresh } = useStats();
+  const {
+    triggerDevicesRefresh,
+    applianceDailyStats,
+    selectedDate,
+    setApplianceDailyStats,
+    setApplianceDailyStatsLoading,
+  } = useStats();
 
   const { colorScheme } = useColorScheme();
 
@@ -67,6 +137,95 @@ export default function HomeScreen() {
       year: "numeric",
     }).format(new Date());
   }, []);
+
+  const APPLIANCE_COLOR_MAP: Record<string, string> = useMemo(
+    () => ({
+      'personal computer': '#3b82f6',
+      'pc': '#3b82f6',
+      'computer': '#3b82f6',
+      'television': '#8b5cf6',
+      'tv': '#8b5cf6',
+      'washing machine': '#10b981',
+      'washer': '#10b981',
+      'rice cooker': '#f59e0b',
+    }),
+    []
+  );
+
+  const normalizeApplianceLabel = useCallback((value: unknown) => {
+    if (typeof value !== 'string') return '';
+    return value.trim().toLowerCase();
+  }, []);
+
+  const resolveApplianceColor = useCallback(
+    (device: any) => {
+      const direct = typeof device?.color === 'string' ? device.color : '';
+      if (direct) return direct;
+
+      const candidates = [
+        normalizeApplianceLabel(device?.name),
+        normalizeApplianceLabel(device?.label),
+        normalizeApplianceLabel(device?.appliance_label),
+      ].filter(Boolean);
+
+      for (const c of candidates) {
+        if (APPLIANCE_COLOR_MAP[c]) return APPLIANCE_COLOR_MAP[c];
+      }
+
+      return '#10b981';
+    },
+    [APPLIANCE_COLOR_MAP, normalizeApplianceLabel]
+  );
+
+  const resolveApplianceDisplayColor = useCallback(
+    (device: any) => {
+      const base = resolveApplianceColor(device);
+      if (anomalyLevel === 'critical') return '#ef4444';
+      if (anomalyLevel === 'warning') return '#f59e0b';
+      return base;
+    },
+    [anomalyLevel, resolveApplianceColor]
+  );
+
+  const resolveApplianceRuntimeSec = useCallback(
+    (device: any) => {
+      const primary = normalizeApplianceLabel(
+        (device as any)?.appliance_label ?? (device as any)?.label ?? (device as any)?.name
+      );
+
+      const aliasMap: Record<string, string[]> = {
+        pc: ['personal computer', 'htpc', 'pc', 'computer'],
+        television: ['television', 'tv'],
+        tv: ['television', 'tv'],
+        'washing machine': ['washing machine', 'washer'],
+        washer: ['washing machine', 'washer'],
+        'rice cooker': ['rice cooker'],
+        lights: ['lights', 'light'],
+      };
+
+      const candidates = [
+        primary,
+        normalizeApplianceLabel((device as any)?.name),
+        normalizeApplianceLabel((device as any)?.label),
+        normalizeApplianceLabel((device as any)?.appliance_label),
+      ].filter(Boolean);
+
+      const expanded = new Set<string>();
+      for (const c of candidates) {
+        expanded.add(c);
+        const aliases = aliasMap[c];
+        if (aliases) aliases.forEach((a) => expanded.add(a));
+      }
+
+      const match = (applianceDailyStats ?? []).find((x) => {
+        const statLabel = normalizeApplianceLabel(x.appliance_label);
+        return expanded.has(statLabel);
+      });
+
+      return match?.total_duration_sec ?? 0;
+    },
+    [applianceDailyStats, normalizeApplianceLabel]
+  );
 
   const getApplianceIcon = useCallback((applianceLabel?: string) => {
     const name = (applianceLabel ?? "").toLowerCase().trim();
@@ -89,6 +248,38 @@ export default function HomeScreen() {
 
     return "#ffffff";
   }, []);
+
+  const appliancesForSphere = useMemo(() => {
+    return (data?.devices ?? []) as any[];
+  }, [data?.devices]);
+
+  useEffect(() => {
+    const loadDailyStats = async () => {
+      try {
+        setApplianceDailyStatsLoading(true);
+        const day = selectedDate ?? getPhilippineDateString();
+
+        const response = await fetch(
+          `https://smartwatt-server.netlify.app/.netlify/functions/api/appliance-stats/daily?date=${day}&tz=Asia/Manila`
+        );
+        const json = await response.json();
+
+        if (!response.ok) {
+          throw new Error(json?.error || 'Failed to fetch appliance daily stats');
+        }
+
+        setApplianceDailyStats(Array.isArray(json?.data) ? json.data : []);
+      } catch (error) {
+        console.log('Fetch /appliance-stats/daily error:', error);
+        setApplianceDailyStats([]);
+      } finally {
+        setApplianceDailyStatsLoading(false);
+      }
+    };
+
+    if (!modalVisible) return;
+    loadDailyStats();
+  }, [modalVisible, selectedDate, setApplianceDailyStats, setApplianceDailyStatsLoading]);
 
   useEffect(() => {
     let readingsChannel: RealtimeChannel;
@@ -438,7 +629,7 @@ export default function HomeScreen() {
               <Skeletoncircle size={280} />
             )}
             {data && (
-              <HeroCarouselComponent devices={data.totalUsage ? data.devices : data.devices} totalUsage={data.totalUsage} voltage={data.voltage} current={data.current} />
+              <HeroCarouselComponent devices={appliancesForSphere} totalUsage={data.totalUsage} voltage={data.voltage} current={data.current} />
             )}
           </Animated.View>
 
@@ -562,9 +753,7 @@ export default function HomeScreen() {
                                     return date.toLocaleDateString([], {
                                       month: "short",
                                       day: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                      hour12: true,
+                                      year: "numeric",
                                     });
                                   } else {
                                     return date.toLocaleTimeString([], {
@@ -603,26 +792,117 @@ export default function HomeScreen() {
           transparent={true}
           visible={modalVisible}
         >
-          <View className='flex-1 bg-background/80 p-4'>
-            <Pressable onPress={() => setModalVisible(false)} className='p-2'>
-              <Icon as={ChevronLeft} className='size-5 text-foreground' />
-            </Pressable>
-            <Text>Legend</Text>
-            <View className='flex flex-row gap-2'>
-              <View className='p-1 rounded-full bg-blue-500 self-center'></View>
-              <Text>Refrigerator</Text>
+          <View className='flex-1 bg-black/80'>
+            <View className='flex-1 p-6 pt-14'>
+
+              <Pressable onPress={() => setModalVisible(false)}>
+
+              {/* <Pressable
+                onPress={() => setModalVisible(false)}
+                className='w-11 h-10 items-center justify-center rounded-full'
+              >
+                <Icon as={ChevronLeft} className='size-5 text-foreground' />
+              </Pressable> */}
+
+              <View className='mt-10'>
+                <View className='flex flex-row items-end -gap-2 ml-4 '>
+
+                  <View className='translate-y-3 translate-x-1'>
+                  <Svg
+                      width={90}
+                      height={90}
+                      viewBox="0 0 40 73"
+                      fill="none"
+                    
+                    >
+                      <Path
+                        d="M6.54856 48.1286L20.5917 13.0207C21.0164 11.959 22.6025 12.3262 22.5174 13.4665L20.5802 39.4256C20.5369 40.0056 20.9958 40.5 21.5774 40.5H37.7433C38.5185 40.5 38.9989 41.3439 38.6031 42.0105L24.7275 65.3801C24.124 66.3964 22.5668 65.7092 22.9109 64.5784L27.107 50.7912C27.3026 50.1487 26.8219 49.5 26.1504 49.5H7.47703C6.76957 49.5 6.28581 48.7855 6.54856 48.1286Z"
+                        fill={anomalyLevel === 'critical' ? '#612727' : anomalyLevel === 'warning' ? '#805B1E' : '#0D6731'}
+                        stroke="black"
+                      />
+                      <Path
+                        d="M0.548556 41.1286L14.5917 6.0207C15.0164 4.95901 16.6025 5.32621 16.5174 6.46651L14.5802 32.4256C14.5369 33.0056 14.9958 33.5 15.5774 33.5H31.7433C32.5185 33.5 32.9989 34.3439 32.6031 35.0105L18.7275 58.3801C18.124 59.3964 16.5668 58.7092 16.9109 57.5784L21.107 43.7912C21.3026 43.1487 20.8219 42.5 20.1504 42.5H1.47703C0.769568 42.5 0.28581 41.7855 0.548556 41.1286Z"
+                        fill={anomalyLevel === 'critical' ? '#ef4444' : anomalyLevel === 'warning' ? '#f59e0b' : '#00c951'}
+                      />
+                    </Svg>
+                  </View>                    
+
+                  <View className='flex flex-row items-end'>
+                    <Text
+                      className={`text-6xl font-semibold ${anomalyLevel === 'critical' ? 'text-red-500' : anomalyLevel === 'warning' ? 'text-yellow-500' : 'text-white'}`}
+                    >
+                      {data ? Number(data.totalUsage).toFixed(1) : '0.0'}
+                    </Text>
+                    <Text
+                      className={`text-lg font-medium ml-2 text-white/40`}
+                    >
+                      W
+                    </Text>
+                  </View>
+
+                  <Text className='text-base font-medium text-white/40 ml-2'>/{powerLimit}W</Text>
+                </View>
+
+                <View className='flex flex-row justify-between mt-6 px-1'>
+                  <Text className='text-sm text-white/50'>Appliances</Text>
+                  <Text className='text-sm text-white/50'>Power</Text>
+                </View>
+
+                <View className='mt-3 rounded-2xl bg-black/40 border overflow-hidden'>
+                  {appliancesForSphere.length === 0 ? (
+                    <View className='p-4'>
+                      <Text className='text-sm text-white/40'>No appliances detected.</Text>
+                    </View>
+                  ) : (
+                    appliancesForSphere.map((device, idx) => (
+                      <View
+                        key={device.id ?? idx}
+                        className={`px-4 py-4 flex flex-row items-center justify-between ${idx === 0 ? '' : 'border-t border-white/10'}`}
+                      >
+                        <View className='flex flex-row items-center gap-3 flex-1 pr-3'>
+                          <PulsingDot color={resolveApplianceDisplayColor(device)} />
+                          <View className='flex-1'>
+                            <Text className='text-base font-medium text-white capitalize ' style={{ color: resolveApplianceDisplayColor(device), opacity: 100 }}>
+                              {(device as any)?.appliance_label ?? (device as any)?.label ?? (device as any)?.name ?? 'Unknown'}
+                            </Text>
+                            <Text className='text-[10px] text-white/30'>Current Run Time: {formatDuration(resolveApplianceRuntimeSec(device))}</Text>
+                          </View>
+                        </View>
+
+                        <Text
+                          className='text-base font-semibold'
+                          style={{ color: resolveApplianceDisplayColor(device), opacity: 100 }}
+                        >
+                          {Number(
+                            (device as any)?.matched_state_w ??
+                              (device as any)?.matched_state ??
+                              (device as any)?.basePower ??
+                              0
+                          ).toFixed(0)}
+                        </Text>
+                        <Text className='text-xs text-white/40 mt-1'>w</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+
+                <View className='mt-10 flex flex-row gap-12 items-center justify-center'>
+                  <View>
+                    <Text className='text-xs text-white/40'>Voltage</Text>
+                    <Text className='text-sm text-white/80'>
+                      {data ? `${data.voltage} V` : '--'}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className='text-xs text-white/40'>Current</Text>
+                    <Text className='text-sm text-white/80'>
+                      {data ? `${data.current} A` : '--'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              </Pressable>
             </View>
-            <View className='flex flex-row gap-2'>
-              <View className='p-1 rounded-full bg-green-500 self-center'></View>
-              <Text>PC</Text>
-            </View>
-            <View className='flex flex-row gap-2'>
-              <View className='p-1 rounded-full bg-yellow-500 self-center'></View>
-              <Text>Electric Fan</Text>
-            </View>
-            <Text>Current: 10 A</Text>
-            <Text>Voltage: 12 V</Text>
-            <Text>Cost: P39.8</Text>
           </View>
         </Modal>
       </ScrollView>
