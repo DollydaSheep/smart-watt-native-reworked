@@ -1,12 +1,95 @@
-import { KeyboardAvoidingView, Platform, View, Image, TextInput, Pressable, Alert } from "react-native";
+import { KeyboardAvoidingView, Platform, View, Image, TextInput, Pressable, Alert, StyleSheet } from "react-native";
 import { Text } from "./ui/text";
 import { useState } from "react";
 import { OtpInput } from "react-native-otp-entry";
-import { ArrowLeft } from "lucide-react-native";
+import { Eye, EyeOff } from "lucide-react-native";
 import { Icon } from "./ui/icon";
 import { Animated, Easing } from "react-native";
 import { useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+
+type ActionButtonProps = {
+	label: string;
+	onPress: () => void;
+	variant?: "primary" | "secondary" | "subtle";
+};
+
+function ActionButton({ label, onPress, variant = "secondary" }: ActionButtonProps) {
+	const scale = useRef(new Animated.Value(1)).current;
+	const translateY = useRef(new Animated.Value(0)).current;
+	const overlayOpacity = useRef(new Animated.Value(0)).current;
+
+	const buttonClassName =
+		variant === "primary"
+			? "py-3.5 bg-green-500 rounded-full items-center overflow-hidden"
+			: variant === "subtle"
+				? "py-3.5 bg-foreground/5 rounded-full items-center overflow-hidden"
+				: "py-3.5 bg-foreground/10 rounded-full items-center overflow-hidden";
+
+	const rippleColor = variant === "primary" ? "#ffffff24" : "#ffffff14";
+	const highlightOpacity = variant === "primary" ? 0.16 : 0.1;
+
+	const animateButton = (pressed: boolean) => {
+		Animated.parallel([
+			Animated.spring(scale, {
+				toValue: pressed ? 0.96 : 1,
+				tension: 260,
+				friction: pressed ? 22 : 14,
+				useNativeDriver: true,
+			}),
+			Animated.spring(translateY, {
+				toValue: pressed ? 2 : 0,
+				tension: 260,
+				friction: pressed ? 24 : 16,
+				useNativeDriver: true,
+			}),
+			Animated.timing(overlayOpacity, {
+				toValue: pressed ? 1 : 0,
+				duration: pressed ? 80 : 180,
+				easing: Easing.out(Easing.quad),
+				useNativeDriver: true,
+			}),
+		]).start();
+	};
+
+	return (
+		<Pressable
+			className='flex-1'
+			onPress={onPress}
+			onPressIn={() => animateButton(true)}
+			onPressOut={() => animateButton(false)}
+			android_ripple={{ color: rippleColor }}
+		>
+			<Animated.View
+				style={{
+					transform: [{ scale }, { translateY }],
+					shadowColor: "#000",
+					shadowOpacity: variant === "primary" ? 0.24 : 0.12,
+					shadowOffset: { width: 0, height: 8 },
+					shadowRadius: variant === "primary" ? 18 : 12,
+					elevation: variant === "primary" ? 6 : 3,
+				}}
+			>
+				<View className={buttonClassName}>
+					<Animated.View
+						pointerEvents='none'
+						style={[
+							StyleSheet.absoluteFillObject,
+							{
+								backgroundColor: "#ffffff",
+								opacity: overlayOpacity.interpolate({
+									inputRange: [0, 1],
+									outputRange: [0, highlightOpacity],
+								}),
+							},
+						]}
+					/>
+					<Text className='text-sm text-foreground'>{label}</Text>
+				</View>
+			</Animated.View>
+		</Pressable>
+	);
+}
 
 
 export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
@@ -18,6 +101,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [serialKey, setSerialKey] = useState("");
@@ -187,45 +272,83 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 								</View>
 							</View>
 							<View className="flex-col gap-4 px-8 pt-12">
-								<View className='px-3 flex-row items-center bg-foreground/10 rounded-md'>
+								<View className='px-3 flex-row items-center bg-foreground/10 rounded-md'
+									style={{ position: 'relative' }}
+								>
 									<Image source={require('assets/images/password-icon.png')}
 										style={{
 											height: 20,
 											width: 20,
 										}}
 									/>
-									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
+									<TextInput className='py-2.5 px-2 pr-10 w-full text-white text-sm'
 										placeholder='Password'
 										placeholderTextColor={'#ffffff60'}
+										secureTextEntry={!showPassword}
 										value={password}
 										onChangeText={setPassword}
 									/>
+									<Pressable
+										onPress={() => setShowPassword((current) => !current)}
+										hitSlop={10}
+										style={{
+											position: 'absolute',
+											right: 12,
+											top: 0,
+											bottom: 0,
+											justifyContent: 'center',
+											alignItems: 'center',
+										}}
+									>
+										<Icon
+											as={showPassword ? EyeOff : Eye}
+											size={18}
+											color="#ffffff90"
+										/>
+									</Pressable>
 								</View>
 
-								<View className='px-3 flex-row items-center bg-foreground/10 rounded-md'>
+								<View className='px-3 flex-row items-center bg-foreground/10 rounded-md'
+									style={{ position: 'relative' }}
+								>
 									<Image source={require('assets/images/password-icon.png')}
 										style={{
 											height: 20,
 											width: 20,
 										}}
 									/>
-									<TextInput className='py-2.5 px-2 w-full text-white text-sm'
+									<TextInput className='py-2.5 px-2 pr-10 w-full text-white text-sm'
 										placeholder='Confirm Password'
 										placeholderTextColor={'#ffffff60'}
+										secureTextEntry={!showConfirmPassword}
 										value={confirmPassword}
 										onChangeText={setConfirmPassword}
 									/>
+									<Pressable
+										onPress={() => setShowConfirmPassword((current) => !current)}
+										hitSlop={10}
+										style={{
+											position: 'absolute',
+											right: 12,
+											top: 0,
+											bottom: 0,
+											justifyContent: 'center',
+											alignItems: 'center',
+										}}
+									>
+										<Icon
+											as={showConfirmPassword ? EyeOff : Eye}
+											size={18}
+											color="#ffffff90"
+										/>
+									</Pressable>
 								</View>
 
 							</View>
 
 							<View className="flex-row top-12 px-6 gap-20"> 
-								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={onSwitch}>
-									<Text className="text-sm text-foreground">Back</Text>
-								</Pressable>
-								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>handleNext()}>
-									<Text className="text-sm text-foreground">Next</Text>
-								</Pressable>
+								<ActionButton label='Back' onPress={onSwitch} />
+								<ActionButton label='Next' onPress={() => handleNext()} variant='primary' />
 							</View>
 						</Animated.View>
 					) : signUpScreen === 2 ? (
@@ -259,12 +382,8 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 
 							</View>
 							<View className="flex-row top-52 px-6 gap-20"> 
-								<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>goBack()}>
-									<Text className="text-sm text-foreground">Back</Text>
-								</Pressable>
-								<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>handleValidateSerial()}>
-									<Text className="text-sm text-foreground">Next</Text>
-								</Pressable>
+								<ActionButton label='Back' onPress={() => goBack()} />
+								<ActionButton label='Next' onPress={() => handleValidateSerial()} variant='primary' />
 							</View>
 						</Animated.View>
 					): signUpScreen === 3 ? (
@@ -307,15 +426,9 @@ export default function SignupScreen({ onSwitch }: { onSwitch: () => void }) {
 									/>
 								</View>
 								<View className="flex-row gap-4 pt-12">
-									<Pressable className='flex-1 py-3.5 bg-foreground/5 rounded-full items-center' onPress={()=>goBack()}>
-										<Text className="text-sm text-foreground">Back</Text>
-									</Pressable>
-									<Pressable className='flex-1 py-3.5 bg-foreground/10 rounded-full items-center' onPress={()=>setSignUpScreen(1)}>
-										<Text className="text-sm text-foreground">Resend</Text>
-									</Pressable>
-									<Pressable className='flex-1 py-3.5 bg-green-500 rounded-full items-center' onPress={()=>handleSignUp()}>
-										<Text className="text-sm text-foreground">Next</Text>
-									</Pressable>
+									<ActionButton label='Back' onPress={() => goBack()} variant='subtle' />
+									<ActionButton label='Resend' onPress={() => setSignUpScreen(1)} />
+									<ActionButton label='Next' onPress={() => handleSignUp()} variant='primary' />
 								</View>
 							</View>
 						</Animated.View>
