@@ -145,7 +145,7 @@ export default function MenuTabScreen(){
   };
 
   return (
-    <ScrollView>
+    <ScrollView scrollEnabled={false} bounces={false} overScrollMode="never">
       <View className='flex-1'>
 
         {/* Header */}
