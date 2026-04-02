@@ -21,16 +21,24 @@ const API_BASE = "https://smartwatt-server.netlify.app/.netlify/functions/api";
 
 export default function MenuTabScreen(){
   
-  const { anomalyLevel, powerLimit, setPowerLimit } = useSmartWatt();
+  const { anomalyLevel, powerLimit, setPowerLimit, setAnomalyLevel } = useSmartWatt();
 
   const [storePower, setStorePower] = useState('');
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [usedTodayKwh, setUsedTodayKwh] = useState<number>(0);
 
+  
+
   const screenWidth = Dimensions.get("window").width;
   const progress = data ? data.totalUsage / powerLimit : 0;
   const barWidth = progress * screenWidth;
+
+
+  //anomalycolor
+
+  
+
 
   // 🔥 Dropdown animation
   const isOpen = useSharedValue(false);
@@ -160,7 +168,15 @@ export default function MenuTabScreen(){
         <View className='items-center py-8 px-4 border-b border-border'>
 
           <Pressable className='flex flex-row items-center gap-4' onPress={toggleDropdown}>
-            <View className='p-4 rounded-full bg-green-500'>
+            <View 
+              className='p-4 rounded-full'
+              style={{
+                backgroundColor:
+                  anomalyLevel === 'critical' ? '#ef4444' :
+                  anomalyLevel === 'warning' ? '#F5C20B' :
+                  '#10b981',
+              }}
+            >
               <Zap color="#fff" fill="#fff" />
             </View>
 
