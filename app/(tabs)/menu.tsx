@@ -192,10 +192,10 @@ export default function MenuTabScreen(){
             </View>
           </Pressable>
 
-          <Animated.View style={[animatedStyle, { overflow: "hidden" }]} className='flex flex-row items-center gap-4 mt-2'>
+          <Animated.View style={[animatedStyle, { overflow: "hidden" }]} className='flex flex-row items-center gap-4 mt-2 pb-3'>
             <View className='p-4 rounded-full opacity-0' />
 
-            <View className='flex-1 bg-foreground/10 rounded-lg'>
+            <View className='flex-1 bg-foreground/10 pb-5 rounded-lg'>
               <View className='px-4 py-2'>
                 <Text className='text-green-400 text-sm font-medium'>
                   {usedTodayKwh.toFixed(2)} kWh
@@ -221,18 +221,7 @@ export default function MenuTabScreen(){
                 </View>
               </View>
 
-              <View className='p-4 pt-2'>
-                <View className='flex flex-row justify-between mb-2'>
-                  <Text className='text-xs'>Usage</Text>
-                  <Text className='text-xs text-green-500'>
-                    {data ? ((data!.totalUsage / powerLimit) * 100).toFixed(2) : "0"}% of limit
-                  </Text>
-                </View>
-
-                <View className='h-2 bg-foreground rounded-full overflow-hidden'>
-                  <View className='h-2 bg-green-500' style={{ width: barWidth }} />
-                </View>
-              </View>
+              
             </View>
           </Animated.View>
 
