@@ -21,8 +21,9 @@
     },
     "android": {
       "edgeToEdgeEnabled": true,
+      "icon": "./assets/images/logo-app.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo-app.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.dollydasheep.smartwatt",
