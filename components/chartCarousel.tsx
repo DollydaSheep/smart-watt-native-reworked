@@ -11,7 +11,7 @@ import ApplianceUsageRingChart from "./ringchart";
 import Skeletonbox from "./skeleton/skeletonbox";
 import { useStats } from "@/lib/statsContext";
 
-const data = [...new Array(3).keys()];
+const data = [...new Array(2).keys()];
 const width = Dimensions.get("window").width;
 
 type ChartCarouselProps = {
@@ -84,9 +84,9 @@ export default function ChartCarouselComponent({
       return <DailyPeaksBarChart key={`chart-1-${selectedDate}-${mode}`} />;
     }
 
-    if (carouselIndex === 2) {
-      return <ApplianceUsageRingChart key={`chart-2-${selectedDate}-${mode}`} />;
-    }
+    // if (carouselIndex === 2) {
+    //   return <ApplianceUsageRingChart key={`chart-2-${selectedDate}-${mode}`} />;
+    // }
 
     return null;
   };

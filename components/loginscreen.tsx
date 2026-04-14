@@ -113,31 +113,25 @@ export default function LoginScreen({ onSwitch }: { onSwitch: () => void }) {
 	const anim = useRef(new Animated.Value(0)).current;
 
 	const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
-      return;
-    }
+		if (!email || !password) {
+			Alert.alert("Error", "Please enter both email and password.");
+			return;
+		}
 
-    // setLoading(true);
+		try {
+			const { data, error } = await supabase.auth.signInWithPassword({
+				email: email.trim(),
+				password: password.trim(),
+			});
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+			if (error) throw error;
 
-      if (error) throw error;
-
-      Alert.alert("Success", `Welcome back, ${data.user?.email}`);
-      // ✅ e.g. router.push("/home")
-
-    } catch (error: any) {
-      console.error("Login error:", error.message);
-      Alert.alert("Login Failed", error.message);
-    } finally {
-      // setLoading(false);
-    }
-  };
+			Alert.alert("Success", `Welcome back, ${data.user?.email}`);
+		} catch (error: any) {
+			console.error("Login error:", error);
+			Alert.alert("Login Failed", error.message);
+		}
+	};
 
 	useEffect(() => {
 		anim.setValue(-40); // start slightly right
@@ -189,6 +183,9 @@ export default function LoginScreen({ onSwitch }: { onSwitch: () => void }) {
 								placeholderTextColor={'#ffffff60'}
 								value={email}
 								onChangeText={setEmail}
+								autoCapitalize="none"
+								autoCorrect={false}
+								keyboardType="email-address"
 							/>
 						</View>
 						<View className='px-3 flex-row items-center bg-foreground/20 rounded-md'

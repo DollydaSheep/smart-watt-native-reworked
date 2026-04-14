@@ -2,12 +2,13 @@ import { Text } from '@/components/ui/text';
 import { useSmartWatt } from '@/lib/context';
 import { THEME } from '@/lib/theme';
 import { DeviceData } from '@/lib/types';
-import { ChevronDown, Zap } from 'lucide-react-native';
+import { ChevronDown, Zap, LogOut } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, Image, TextInput, Dimensions, Pressable } from 'react-native';
+import { ScrollView, View, Image, TextInput, Dimensions, Pressable, Alert, Modal } from 'react-native';
 import { io } from "socket.io-client";
 import { useFocusEffect } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
+import { supabase } from '@/lib/supabase';
 
 import Animated, {
   useSharedValue,
@@ -27,6 +28,8 @@ export default function MenuTabScreen(){
   const [data, setData] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [usedTodayKwh, setUsedTodayKwh] = useState<number>(0);
+  const [signOutModalOpen, setSignOutModalOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   
 
@@ -152,6 +155,30 @@ export default function MenuTabScreen(){
     }
   };
 
+  const handleSignOut = () => {
+    setSignOutModalOpen(true);
+  };
+
+  const handleConfirmSignOut = async () => {
+    setSigningOut(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setSignOutModalOpen(false);
+      Alert.alert("Signed Out", "You have been successfully signed out.");
+      // You might want to navigate to login screen here
+      // router.replace('/login'); // if you have a login route
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to sign out: " + error.message);
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const handleCancelSignOut = () => {
+    setSignOutModalOpen(false);
+  };
+
   return (
     <ScrollView scrollEnabled={false} bounces={false} overScrollMode="never">
       <View className='flex-1'>
@@ -227,8 +254,24 @@ export default function MenuTabScreen(){
 
         </View>
 
+        {/* Sign Out Section */}
+        <View className='px-4 py-2 border-b border-border'>
+          <Pressable 
+            onPress={handleSignOut}
+            className='flex flex-row items-center gap-3 p-4 rounded-lg'
+          >
+            <View className='p-3 rounded-full border border-white/20 dark:border-white/20'>
+              <Icon as={LogOut} size={20} color="#ffffff" />
+            </View>
+            <View className='flex-1'>
+              <Text className='text-white font-medium'>Sign Out</Text>
+              <Text className='text-xs text-white/50'>Log out of your account</Text>
+            </View>
+          </Pressable>
+        </View>
+
         {/* 🔥 Chad */}
-        <Animated.View style={[{ alignItems: 'flex-end', marginTop: 178 }, chadStyle]}>
+        <Animated.View style={[{ alignItems: 'flex-end', marginTop: 63 }, chadStyle]}>
           <Image
             source={chadSource }
             style={{ width: 300, height: 300, resizeMode: 'contain' }}
@@ -236,6 +279,41 @@ export default function MenuTabScreen(){
         </Animated.View>
 
       </View>
+
+      {/* Sign Out Confirmation Modal */}
+      <Modal transparent visible={signOutModalOpen} animationType="fade">
+        <View className="flex-1 bg-background/70 items-center justify-center px-6">
+          <View className="w-full max-w-md bg-[#141414] rounded-2xl p-5 border border-foreground/10">
+            <Text className="text-lg font-semibold mb-2">Sign Out</Text>
+
+            <Text className="text-sm text-foreground/70 mb-5">
+              Are you sure you want to sign out?
+            </Text>
+
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={handleCancelSignOut}
+                disabled={signingOut}
+                className="flex-1 py-3 rounded-xl bg-foreground/10 items-center"
+              >
+                <Text className="font-medium text-sm">Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleConfirmSignOut}
+                disabled={signingOut}
+                className={`flex-1 py-3 rounded-xl items-center justify-center px-4 bg-red-600 ${
+                  signingOut ? 'opacity-60' : 'opacity-100'
+                }`}
+              >
+                <Text className="font-medium text-white text-sm">
+                  {signingOut ? 'Signing Out...' : 'Sign Out'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }

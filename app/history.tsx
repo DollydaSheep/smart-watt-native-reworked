@@ -33,6 +33,19 @@ type HistoryItem = {
   deltaText: string;
   deltaValue: number;
   rawStatus: string;
+  eventType: "on" | "off";
+};
+
+type ApplianceEventRow = {
+  id: number;
+  appliance_label: string;
+  started_at: string;
+  ended_at: string | null;
+  status: string;
+  matched_state_w: number | null;
+  estimated_energy_kwh: number | null;
+  raw_delta_w: number | null;
+  raw_off_delta_w: number | null;
 };
 
 const PAGE_SIZE = 30;
@@ -79,10 +92,10 @@ export default function HistoryScreen() {
   const getApplianceIconColor = useCallback((applianceLabel?: string) => {
     const name = (applianceLabel ?? "").toLowerCase().trim();
 
-    if (name.includes("tv") || name.includes("television")) return "#8b5cf6"; // violet-500
-    if (name.includes("pc") || name.includes("computer") || name.includes("desktop")) return "#60a5fa"; // blue-400
-    if (name.includes("washing machine") || name.includes("washer")) return "#4ade80"; // green-400
-    if (name.includes("rice cooker")) return "#facc15"; // yellow-400
+    if (name.includes("tv") || name.includes("television")) return "#8b5cf6";
+    if (name.includes("pc") || name.includes("computer") || name.includes("desktop")) return "#60a5fa";
+    if (name.includes("washing machine") || name.includes("washer")) return "#4ade80";
+    if (name.includes("rice cooker")) return "#facc15";
 
     return "#ffffff";
   }, []);
@@ -107,34 +120,48 @@ export default function HistoryScreen() {
     opacity: opacity.value,
   }));
 
-  const normalizeEvent = (row: {
-    id: number;
-    appliance_label: string;
-    started_at: string;
-    ended_at: string | null;
-    status: string;
-    matched_state_w: number | null;
-  }): HistoryItem => {
-    const isClosed =
-      row.status === "off" ||
-      row.status === "completed" ||
-      (!!row.ended_at && row.status !== "on");
+  const toTitleCase = (value: string) =>
+    value
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
 
-    const watt = Number(row.matched_state_w ?? 0);
-    const signedPower = isClosed ? -Math.abs(watt) : Math.abs(watt);
+  const normalizeEvent = (row: ApplianceEventRow): HistoryItem[] => {
+    const applianceName = toTitleCase(row.appliance_label);
+    const items: HistoryItem[] = [];
 
-    return {
-      id: String(row.id),
-      appliance: row.appliance_label,
-      time: isClosed && row.ended_at ? row.ended_at : row.started_at,
-      rawStatus: row.status,
-      message: `${row.appliance_label
-        .split(" ")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ")} ${isClosed ? "Turned Off" : "Turned On"}`,
-      deltaText: `${signedPower > 0 ? "+" : ""}${signedPower}W`,
-      deltaValue: signedPower,
-    };
+    if (row.started_at) {
+      const startDelta = Number(row.raw_delta_w ?? 0);
+
+      items.push({
+        id: `on-${row.id}`,
+        appliance: row.appliance_label,
+        time: row.started_at,
+        rawStatus: row.status,
+        eventType: "on",
+        message: `${applianceName} Turned On`,
+        deltaValue: startDelta,
+        deltaText: `${startDelta > 0 ? "+" : ""}${startDelta.toFixed(1)}W`,
+      });
+    }
+
+    if (row.ended_at) {
+      const offRaw = Number(row.raw_off_delta_w ?? 0);
+      const endDelta = offRaw > 0 ? -offRaw : offRaw;
+
+      items.push({
+        id: `off-${row.id}`,
+        appliance: row.appliance_label,
+        time: row.ended_at,
+        rawStatus: row.status,
+        eventType: "off",
+        message: `${applianceName} Turned Off`,
+        deltaValue: endDelta,
+        deltaText: `${endDelta > 0 ? "+" : ""}${endDelta.toFixed(1)}W`,
+      });
+    }
+
+    return items;
   };
 
   const mergeIntoCache = useCallback((incoming: HistoryItem[]) => {
@@ -168,24 +195,20 @@ export default function HistoryScreen() {
             ended_at,
             status,
             matched_state_w,
-            estimated_energy_kwh
+            estimated_energy_kwh,
+            raw_delta_w,
+            raw_off_delta_w
           `)
           .order("started_at", { ascending: false })
           .range(from, to);
 
         if (error) throw error;
 
-        const rows = (data ?? []) as Array<{
-          id: number;
-          appliance_label: string;
-          started_at: string;
-          ended_at: string | null;
-          status: string;
-          matched_state_w: number | null;
-          estimated_energy_kwh: number | null;
-        }>;
+        const rows = (data ?? []) as ApplianceEventRow[];
 
-        const normalized = rows.map(normalizeEvent);
+        const normalized = rows
+          .flatMap(normalizeEvent)
+          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
         if (append) {
           setNotif((prev) => [...prev, ...normalized]);
@@ -380,9 +403,9 @@ export default function HistoryScreen() {
                               </View>
                             </View>
 
-                            <Pressable onPress={() => openSheet(n)}>
+                            {/* <Pressable onPress={() => openSheet(n)}>
                               <EllipsisVertical color={"#fff"} />
-                            </Pressable>
+                            </Pressable> */}
                           </View>
                         );
                       })}
